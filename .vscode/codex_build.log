@@ -1,0 +1,150 @@
+*** Using Compiler 'V6.21', folder: 'D:\keil_5\ARM\ARMCLANG\Bin'
+Build target 'New_Chassis'
+error: unable to rename temporary 'new_chassis/gpio-30f36e80.o.tmp' to output file 'new_chassis/gpio.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling gpio.c...
+error: unable to rename temporary 'new_chassis/can-af430728.o.tmp' to output file 'new_chassis/can.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling can.c...
+error: unable to rename temporary 'new_chassis/usart-db0823d1.o.tmp' to output file 'new_chassis/usart.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling usart.c...
+error: unable to rename temporary 'new_chassis/dma-4013ccb5.o.tmp' to output file 'new_chassis/dma.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling dma.c...
+error: unable to rename temporary 'new_chassis/spi-63986b24.o.tmp' to output file 'new_chassis/spi.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling spi.c...
+error: unable to rename temporary 'new_chassis/tim-db245622.o.tmp' to output file 'new_chassis/tim.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling tim.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_msp-d17d85de.o.tmp' to output file 'new_chassis/stm32f4xx_hal_msp.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_msp.c...
+error: unable to rename temporary 'new_chassis/cp_system-76931ff2.o.tmp' to output file 'new_chassis/cp_system.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling CP_System.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_flash-e21d670c.o.tmp' to output file 'new_chassis/stm32f4xx_hal_flash.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_flash.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_rcc_ex-4edf716e.o.tmp' to output file 'new_chassis/stm32f4xx_hal_rcc_ex.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_rcc_ex.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_rcc-0f460990.o.tmp' to output file 'new_chassis/stm32f4xx_hal_rcc.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_rcc.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_can-71d56f67.o.tmp' to output file 'new_chassis/stm32f4xx_hal_can.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_can.c...
+compiling main.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_gpio-9bd00205.o.tmp' to output file 'new_chassis/stm32f4xx_hal_gpio.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_gpio.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_flash_ex-99273b2f.o.tmp' to output file 'new_chassis/stm32f4xx_hal_flash_ex.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_flash_ex.c...
+error: unable to rename temporary 'new_chassis/rm_lib-1d9adefb.o.tmp' to output file 'new_chassis/rm_lib.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling RM_Lib.cpp...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_flash_ramfunc-0ea501c2.o.tmp' to output file 'new_chassis/stm32f4xx_hal_flash_ramfunc.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_flash_ramfunc.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_dma_ex-38d9a5f4.o.tmp' to output file 'new_chassis/stm32f4xx_hal_dma_ex.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_dma_ex.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_it-4a7bafb3.o.tmp' to output file 'new_chassis/stm32f4xx_it.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_it.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_pwr-ab00d364.o.tmp' to output file 'new_chassis/stm32f4xx_hal_pwr.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_pwr.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_cortex-85644a60.o.tmp' to output file 'new_chassis/stm32f4xx_hal_cortex.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_cortex.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_exti-bc746cd4.o.tmp' to output file 'new_chassis/stm32f4xx_hal_exti.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_exti.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal-27f557df.o.tmp' to output file 'new_chassis/stm32f4xx_hal.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_pwr_ex-d1ece6b8.o.tmp' to output file 'new_chassis/stm32f4xx_hal_pwr_ex.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_pwr_ex.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_dma-45c8bfbe.o.tmp' to output file 'new_chassis/stm32f4xx_hal_dma.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_dma.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_uart-38968671.o.tmp' to output file 'new_chassis/stm32f4xx_hal_uart.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_uart.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_spi-942b14f0.o.tmp' to output file 'new_chassis/stm32f4xx_hal_spi.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_spi.c...
+error: unable to rename temporary 'new_chassis/system_stm32f4xx-b07545af.o.tmp' to output file 'new_chassis/system_stm32f4xx.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling system_stm32f4xx.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_tim_ex-b2d7c8c7.o.tmp' to output file 'new_chassis/stm32f4xx_hal_tim_ex.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_tim_ex.c...
+error: unable to rename temporary 'new_chassis/stm32f4xx_hal_tim-992e30db.o.tmp' to output file 'new_chassis/stm32f4xx_hal_tim.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling stm32f4xx_hal_tim.c...
+error: unable to rename temporary 'new_chassis/packet-daed65df.o.tmp' to output file 'new_chassis/packet.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling packet.c...
+error: unable to rename temporary 'new_chassis/imu_data_decode-225fc004.o.tmp' to output file 'new_chassis/imu_data_decode.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling imu_data_decode.c...
+error: unable to rename temporary 'new_chassis/example_data-2a36a55f.o.tmp' to output file 'new_chassis/example_data.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling example_data.c...
+error: unable to rename temporary 'new_chassis/nmea_dec-cfc75dc4.o.tmp' to output file 'new_chassis/nmea_dec.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling nmea_dec.c...
+error: unable to rename temporary 'new_chassis/hipnuc_dec-5a8849b1.o.tmp' to output file 'new_chassis/hipnuc_dec.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling hipnuc_dec.c...
+error: unable to rename temporary 'new_chassis/dm-33fd331a.o.tmp' to output file 'new_chassis/dm.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling DM.cpp...
+error: unable to rename temporary 'new_chassis/smc-c3a7e71c.o.tmp' to output file 'new_chassis/smc.o': 'permission denied'
+1 error generated.
+ArmClang: error: unable to remove file: permission denied
+compiling SMC.cpp...
+"New_Chassis\New_Chassis.axf" - 72 Error(s), 0 Warning(s).
+Target not created.
+Build Time Elapsed:  00:00:15
