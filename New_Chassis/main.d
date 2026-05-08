@@ -204,5 +204,5 @@ new_chassis/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   D:\keil_5\ARM\ARMCLANG\include\libcxx\__math\traits.h \
   D:\keil_5\ARM\ARMCLANG\include\libcxx\__math\trigonometric_functions.h \
   ..\RM2023_Lib_V1.2\my_math.h ..\RM2023_Lib_V1.2\CP_System.h \
-  ..\Motor_Lib\DM.h ..\Math_Lib\Leg.h ..\IMU\packet.h \
+  ..\Motor_Lib\DM.h ..\Control_Lib\Leg.h ..\IMU\packet.h \
   ..\IMU\imu_data_decode.h ..\CH010\hipnuc_dec.h

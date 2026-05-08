@@ -37,6 +37,7 @@
 "new_chassis\example_data.o"
 "new_chassis\hipnuc_dec.o"
 "new_chassis\nmea_dec.o"
+"new_chassis\leg.o"
 --strict --scatter "New_Chassis\New_Chassis.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

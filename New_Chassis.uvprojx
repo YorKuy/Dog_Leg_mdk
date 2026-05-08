@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F405xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../RM2023_Lib_V1.2;../Motor_Lib;../Math_Lib;../IMU;../CH010</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../RM2023_Lib_V1.2;../Motor_Lib;../Math_Lib;../IMU;../CH010;..\Control_Lib</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -639,6 +639,21 @@
               <FileName>nmea_dec.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\CH010\nmea_dec.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Control_Lib</GroupName>
+          <Files>
+            <File>
+              <FileName>leg.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Control_Lib\leg.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>leg.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Control_Lib\leg.h</FilePath>
             </File>
           </Files>
         </Group>
