@@ -4,8 +4,8 @@
 *                         www.segger.com                             *
 **********************************************************************
 
-File          : D:/sturtctate/25Infantry/26Alien/Back_protect/My__Chassis_V1.1/MDK-ARM/zyltest.jdebug
-Created       : 26 Apr 2026 03:10
+File          : D:/sturtctate/25Infantry/26Alien/Back_protect/My__Chassis_V1_1/MDK-ARM/yldp.jdebug
+Created       : 10 May 2026 08:13
 Ozone Version : V3.24
 */
 
@@ -22,8 +22,8 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
-  Project.AddPathSubstitute ("D:/sturtctate/25Infantry/26Alien/Back_protect/My__Chassis_V1.1/MDK-ARM", "$(ProjectDir)");
-  Project.AddPathSubstitute ("d:/sturtctate/25infantry/26alien/back_protect/my__chassis_v1.1/mdk-arm", "$(ProjectDir)");
+  Project.AddPathSubstitute ("D:/sturtctate/25Infantry/26Alien/Back_protect/My__Chassis_V1_1/MDK-ARM", "$(ProjectDir)");
+  Project.AddPathSubstitute ("d:/sturtctate/25infantry/26alien/back_protect/my__chassis_v1_1/mdk-arm", "$(ProjectDir)");
   Project.SetDevice ("STM32F405RG");
   Project.SetHostIF ("USB", "602712882");
   Project.SetTargetIF ("SWD");

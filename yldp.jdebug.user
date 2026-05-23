@@ -1,0 +1,23 @@
+
+GraphedExpression="(YAW).mang", Color=#a00909
+GraphedExpression="v_can_buff", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#09a01b
+GraphedExpression="V_Cap_Real", Color=#09a087
+GraphedExpression="CP.ext_game_robot_status_t.chassis_power_limit", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#0984a0
+OpenDocument="RM_Lib.cpp", FilePath="D:/sturtctate/25Infantry/26Alien/Back_protect/My__Chassis_V1_1/RM2023_Lib_V1.2/RM_Lib.cpp", Line=54
+OpenDocument="CP_System.c", FilePath="D:/sturtctate/25Infantry/26Alien/Back_protect/My__Chassis_V1_1/RM2023_Lib_V1.2/CP_System.c", Line=67
+OpenDocument="main.c", FilePath="D:/sturtctate/25Infantry/26Alien/Back_protect/My__Chassis_V1_1/Core/Src/main.c", Line=486
+OpenToolbar="Debug", Floating=0, x=0, y=0
+OpenWindow="Call Stack", DockArea=LEFT, x=0, y=0, w=798, h=626, TabPos=1, TopOfStack=0, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Global Data", DockArea=LEFT, x=0, y=0, w=798, h=626, TabPos=0, TopOfStack=0, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=798, h=626, TabPos=2, TopOfStack=1, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Data Sampling", DockArea=BOTTOM, x=0, y=0, w=1920, h=282, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
+TableHeader="Call Stack", SortCol="Function", SortOrder="ASCENDING", VisibleCols=["Function";"Stack Frame";"Source";"PC";"Return Address";"Stack Used"], ColWidths=[350;126;161;100;190;100]
+TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[330;250;100;118]
+TableHeader="Global Data", SortCol="Value", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[214;100;100;100;100;100]
+TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" (YAW).mang";" v_can_buff";" V_Cap_Real";" CP.ext_game_robot_status_t.chassis_power_limit"], ColWidths=[100;100;100;100;100;100]
+TableHeader="Data Sampling Setup", SortCol="Type", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[291;126;102;102;126;102;100;134;837]
+TableHeader="Power Sampling", SortCol="Index", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
+TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
+TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[26;26;26;26]
+WatchedExpression="YAW", Window=Watched Data 1
+WatchedExpression="IF_DUM_NORMAL", Window=Watched Data 1
