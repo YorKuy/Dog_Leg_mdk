@@ -838,7 +838,7 @@ void Leg_SMC_Control(const LegControlInput *input)
       target_step = input->key_ctrl ? -1.0f : 1.0f;
       target_step /= LEG_FAST_HEIGHT_TARGET_STEP_DIV / 10.0f;
     }
-
+      //ijijiji
     leg_dm_mit_kd = LEG_DM_MIT_KD;
     leg_roll_cmd = 0;
     leg_pitch_cmd = 0;
