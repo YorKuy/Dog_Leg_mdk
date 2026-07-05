@@ -37,15 +37,15 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
  #define PROTECT_MODE 0        //失能模式
-#define ONLY_GIMBAL  1        //纯云�?
-#define ONLY_CHASSIC 2        //纯底�?
+#define ONLY_GIMBAL  1        //纯云�?
+#define ONLY_CHASSIC 2        //纯底�?
 #define CONTROL_MODE 3        //双中控制
-#define XTL_MODE     4        //小陀�?
+#define XTL_MODE     4        //小陀�?
 #define SHOOT_MODE   5        //发射模式
-#define PLAYER_MODE  6        //操作手模�?
-#define FAST_CHASSIC 7        //高�?�底�?
+#define PLAYER_MODE  6        //操作手模�?
+#define FAST_CHASSIC 7        //高�?�底�?
 
-#define GYRO_MODE    1        //�?螺仪闭环
+#define GYRO_MODE    1        //�?螺仪闭环
 #define AUTO_MODE    2        //自瞄模式
 #define Error_MODE   3
 #define Leg_Keep_Mode 4

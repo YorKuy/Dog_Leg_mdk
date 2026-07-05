@@ -80,7 +80,7 @@ void Mini_PC_SendData()
 	Mini_PC_tx_buf[10]=	request.pitch_mang.c[3];
 	
 	Mini_PC_tx_buf[11] = cal_crc_table(Mini_PC_tx_buf,11);
-	CDC_Transmit_FS(Mini_PC_tx_buf,12);
+	//CDC_Transmit_FS(Mini_PC_tx_buf,12);
 }
 
 #elif Communication_Mode == Communication_USB_HID
