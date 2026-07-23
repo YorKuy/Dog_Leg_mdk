@@ -78,7 +78,7 @@ struct DP_Motor_FP
 #define SuperCap_ON HAL_GPIO_WritePin(HEN_GPIO_Port, HEN_Pin, GPIO_PIN_SET);
 #define SuperCap_OFF HAL_GPIO_WritePin(HEN_GPIO_Port, HEN_Pin, GPIO_PIN_RESET);
 
-#define Motor_Yaw_front -1.46722f // 弧度
+#define Motor_Yaw_front -2.53901f // 弧度
 #define rad_T 180.0f / 3.1415f
 
 #define YAW_ERROR_MASK (0x0001 << 0)
@@ -1074,10 +1074,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       leg_input.ch3 = YK.yaogan.v;
       leg_input.key_e = YK.Pressed_Check(KEY_PRESSED_E);
       leg_input.key_ctrl = YK.Pressed_Check(KEY_PRESSED_CTRL);
-      leg_input.gimbal_roll = Gimbal_Roll;
-      leg_input.gimbal_pitch = Gimbal_Pitch;
-      leg_input.gimbal_roll_acc = Gimbal_Roll_Acc;
-      leg_input.gimbal_pitch_acc = Gimbal_Pitch_Acc;
+      leg_input.gimbal_roll = Gimbal_Pitch;
+      leg_input.gimbal_pitch = Gimbal_Roll;
+      leg_input.gimbal_roll_acc = Gimbal_Pitch_Acc;
+      leg_input.gimbal_pitch_acc = Gimbal_Roll_Acc;
       leg_input.fb_real_speed = FB_Real_Speed;
       leg_input.lr_real_speed = LR_Real_Speed;
       leg_input.chassis_ch0_real = Chassic_Ch0_Real;
@@ -1095,7 +1095,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       }
       else if (Motor_Flag.DM_Flag == 1)
       {
-        Right_Leg.DM_MIT(0x01, 0, 0, 0, Leg_Control_Get_Mit_Kd(), Leg_Control_Get_Right_Torque());
+        Right_Leg.DM_MIT(0x01, 0, 0, 0, Leg_Control_Get_Mit_Kd(),Leg_Control_Get_Right_Torque());
         Motor_Flag.DM_Flag = 0;
       }
       Motor_Flag.TIM3_Flag = 0;

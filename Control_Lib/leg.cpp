@@ -6,10 +6,10 @@
 typedef float f;
 typedef uint8_t u8;
 
-#define LEFT_LEG_MAX_MANG 2.97055F
-#define RIGHT_LEG_MAX_MANG -2.58264F
-#define LEFT_LEG_MIN_MANG 2.25292F
-#define RIGHT_LEG_MIN_MANG -1.85264F
+#define LEFT_LEG_MAX_MANG -0.59207F//2.97055F
+#define RIGHT_LEG_MAX_MANG -2.59529F//-2.58264F
+#define LEFT_LEG_MIN_MANG -1.34095F//2.25292F
+#define RIGHT_LEG_MIN_MANG -1.92694F//-1.85264F
 
 #define LEG_DM_MIT_KD 3.5f
 #define LEG_DM_MIT_STATIC_KD 0.6f
@@ -55,8 +55,9 @@ typedef uint8_t u8;
 #define LEG_PLAYER_STATIC_EXIT_ROLL_DEADZONE 1.6f
 #define LEG_PLAYER_STATIC_EXIT_PITCH_DEADZONE 5.0f
 #define LEG_PLAYER_STATIC_TORQUE_DEADZONE 0.20f
-#define LEG_ROLL_BALANCE_SIGN 1.0f
-#define LEG_ROLL_KEEP_TARGET_ANGLE -3.0f
+#define LEG_ROLL_BALANCE_SIGN -1.0f
+#define LEG_ROLL_KEEP_TARGET_ANGLE 1.0f
+#define LEG_SMC_OUTPUT_SLEW_STEP 5.0f
 #define LEG_FAST_HEIGHT_KP 242.0f
 #define LEG_FAST_HEIGHT_KD 0.60f
 #define LEG_FAST_HEIGHT_LIMIT 38.0f
@@ -85,9 +86,7 @@ static PID_class leg_imu_mang(43.0f, 0.05f, 75.0f, 900.0f, 150.0f, 200.0f, 700.0
     leg_imu_pitch_mang(33.0f, 0.08f, 60.0f, 700.0f, 150.0f, 250.0f, 500.0f, 2.0f, 0.8f),
     leg_imu_pitch_sp(0.050f, 0.00040f, 0.0f, 30.0f, 2.0f, 0.0f, 30.0f, 1.0f, 35.0f); 
 
-static SMC_PITCH leg_roll_smc(45,75, 0.15f, 0.001f, 7000, 0.8f, 1.0f),
-                 leg_control_left(40,70,0.2f,0.001f,7000,0.8f,1.0f),
-                 leg_control_right(40,70,0.2f,0.001f,7000,0.8f,1.0f);
+static SMC_PITCH leg_roll_smc(42,65, 0.05f, 0.5f, 8000, 0.8f, 1.0f);
 static UpDown_check_class leg_mode_key(0);
 static u8 leg_control_mode = 0;
 static f leg_target_angel;
@@ -112,7 +111,7 @@ static f leg_roll_cmd, leg_pitch_cmd;
 static f low_roll_compensation;
 static f left_mang_ff, right_mang_ff, left_mang_last_error, right_mang_last_error;
 static LegControlOutput leg_output = {0.0f, 0.0f, LEG_DM_MIT_KD, 0.0f, 0.0f};
-static float torque_return(float u)//Á¦¾Ø×ª»»
+static float torque_return(float u)//ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½
 {
     float A = u / (16384.0f / 3.0f);
     float nm = A * 0.741f * 40.0f;
@@ -129,13 +128,13 @@ static f leg_max(f a, f b)
   return (a > b) ? a : b;
 }
 
-static void leg_sync_output(void) //¸³Öµ
+static void leg_sync_output(void) //ï¿½ï¿½Öµ
 {
   leg_output.mit_kd = leg_dm_mit_kd;
   leg_output.roll_cmd = leg_roll_cmd;
   leg_output.pitch_cmd = leg_pitch_cmd;
 }
-//playerÄ£Ê½ÏÂµÄ¾²Ì¬²¹³¥Ïà¹Øº¯Êý
+//playerÄ£Ê½ï¿½ÂµÄ¾ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øºï¿½ï¿½ï¿½
 static u8 leg_player_static_quiet_in_range(const LegControlInput *input,
                                            f speed_deadzone,
                                            f roll_deadzone,
@@ -147,7 +146,7 @@ static u8 leg_player_static_quiet_in_range(const LegControlInput *input,
          fabsf(input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE) < roll_deadzone &&
          fabsf(input->gimbal_pitch - LEG_PITCH_TARGET_ANGLE) < pitch_deadzone;
 }
-//playerÄ£Ê½ÏÂµÄ¾²Ì¬²¹³¥
+//playerÄ£Ê½ï¿½ÂµÄ¾ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½
 static u8 leg_player_static_quiet(const LegControlInput *input)
 {
   if (leg_player_static_active)
@@ -192,7 +191,7 @@ static void leg_clear_roll_pid(void)
   leg_imu_sp.OUT_I = 0;
   leg_imu_sp.OUT_PID = 0;
 }
-//Çå³ýºá¹öPID£¬ÖØÖÃ¸©ÑöÆ½ºâ×´Ì¬
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½PIDï¿½ï¿½ï¿½ï¿½ï¿½Ã¸ï¿½ï¿½ï¿½Æ½ï¿½ï¿½×´Ì¬
 static void leg_clear_pitch_pid(void)
 {
   leg_imu_pitch_mang.Integral = 0;
@@ -202,14 +201,14 @@ static void leg_clear_pitch_pid(void)
   leg_imu_pitch_sp.OUT_I = 0;
   leg_imu_pitch_sp.OUT_PID = 0;
 }
-//ÖØÖÃÆ½ºâ×´Ì¬
+//ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½×´Ì¬
 static void leg_reset_pitch_balance(void)
 {
   leg_clear_pitch_pid();
   leg_compensation_mode = 0;
   leg_compensation_out = 0;
 }
-//ËÀÍö¼ì²â£¬·ÀÖ¹»ý·Ö¹ý´óµ¼ÖÂÊ§¿Ø
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â£¬ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½
 static u8 leg_integral_death_check(void)
 {
   if (fabsf(leg_imu_mang.OUT_I) >= LEG_DEATH_ROLL_ANGLE_I_LIMIT ||
@@ -224,7 +223,7 @@ static u8 leg_integral_death_check(void)
   }
   return 0;
 }
-//Èí¼þ¹Ø½Ú×èÄá£¬·ÀÖ¹Õðµ´
+//ï¿½ï¿½ï¿½ï¿½ï¿½Ø½ï¿½ï¿½ï¿½ï¿½á£¬ï¿½ï¿½Ö¹ï¿½ï¿½
 static f leg_apply_joint_damping_custom(f torque_cmd,
                                         MOTOR_DM *motor,
                                         f torque_limit,
@@ -242,7 +241,7 @@ static f leg_remaining_output(f torque_limit, f used_output)
   f remaining = torque_limit - fabsf(used_output);
   return (remaining > 0.0f) ? remaining : 0.0f;
 }
-//Æ½ºâÊä³ö£¬°üº¬²¹³¥ºÍ¹Ø½Ú×èÄá
+//Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¹Ø½ï¿½ï¿½ï¿½ï¿½ï¿½
 static void leg_set_balance_output_custom(const LegControlInput *input,
                                           f roll_cmd,
                                           f pitch_cmd,
@@ -291,7 +290,7 @@ static void leg_set_balance_output_custom(const LegControlInput *input,
                                      damping_gain,
                                      speed_deadzone);
 }
-//ÉèÖÃÆ½ºâÊä³ö£¬°üº¬²¹³¥ºÍ¹Ø½Ú×èÄá£¬Ê¹ÓÃÄ¬ÈÏµÄ×èÄá²ÎÊý
+//ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¹Ø½ï¿½ï¿½ï¿½ï¿½á£¬Ê¹ï¿½ï¿½Ä¬ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 static void leg_set_balance_output(const LegControlInput *input, f roll_cmd, f pitch_cmd, f torque_limit)
 {
   leg_set_balance_output_custom(input,
@@ -301,7 +300,7 @@ static void leg_set_balance_output(const LegControlInput *input, f roll_cmd, f p
                                 LEG_JOINT_DAMPING_GAIN,
                                 LEG_JOINT_DAMPING_SPEED_DEADZONE);
 }
-//ÍÈ²¿¼ÓËÙ¶È²¹³¥¸üÐÂ
+//ï¿½È²ï¿½ï¿½ï¿½ï¿½Ù¶È²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 static f leg_accel_feedforward_update(const LegControlInput *input)
 {
   f acc_roll_g = input->gimbal_roll_acc;
@@ -324,7 +323,7 @@ static f leg_accel_feedforward_update(const LegControlInput *input)
                             LEG_ACCEL_FF_LIMIT);
   return leg_accel_ff_out;
 }
-//»ñÈ¡µ×ÅÌÇ°ºóËÙ¶È
+//ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½Ù¶ï¿½
 static f leg_get_chassis_fb_speed(const LegControlInput *input)
 {
   if (input->yk_mode == PLAYER_MODE)
@@ -365,7 +364,7 @@ static f leg_get_chassis_fb_speed(const LegControlInput *input)
     return input->chassis_ch0_real;
   return 0;
 }
-//ÖØÖÃµ×ÅÌ¼ÓËÙ¶È²¹³¥×´Ì¬
+//ï¿½ï¿½ï¿½Ãµï¿½ï¿½Ì¼ï¿½ï¿½Ù¶È²ï¿½ï¿½ï¿½×´Ì¬
 static void leg_reset_chassis_accel_ff(const LegControlInput *input)
 {
   leg_chassis_fb_speed_last = leg_get_chassis_fb_speed(input);
@@ -459,7 +458,7 @@ static f leg_chassis_accel_feedforward_update(const LegControlInput *input)
 
   return leg_chassis_accel_ff_out;
 }
-//ÍÈ²¿ºá¹öÆ½ºâ¸üÐÂ
+//ï¿½È²ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½ï¿½ï¿½
 static f leg_pitch_balance_update(const LegControlInput *input)
 {
   if (input->yk_mode == FAST_CHASSIC || input->yk_mode == CONTROL_MODE ||
@@ -510,7 +509,7 @@ static f leg_pitch_balance_update(const LegControlInput *input)
 
   return leg_compensation_out;
 }
-//±àÂëÆ÷ÖµÄ£Ê½
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÖµÄ£Ê½
 static f leg_fast_mang_cmd(PID_class *mang_pid,
                            PID_class *sp_pid,
                            f target_mang,
@@ -550,7 +549,7 @@ static f leg_fast_mang_cmd(PID_class *mang_pid,
 
   return LIMIT(sp_pid->OUT_PID + *ff_out, -LEG_FAST_HEIGHT_OUT_LIMIT, LEG_FAST_HEIGHT_OUT_LIMIT);
 }
-//ÍÈ²¿±àÂëÆ÷ÖµÐ±ÆÂ¸üÐÂ
+//ï¿½È²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÖµÐ±ï¿½Â¸ï¿½ï¿½ï¿½
 static void leg_mang_target_add(f *left_mang_cmd, f *right_mang_cmd, f target_step)
 {
   *left_mang_cmd += (LEFT_LEG_MAX_MANG > LEFT_LEG_MIN_MANG) ? target_step : -target_step;
@@ -562,7 +561,7 @@ static void leg_mang_target_add(f *left_mang_cmd, f *right_mang_cmd, f target_st
                           leg_min(RIGHT_LEG_MIN_MANG, RIGHT_LEG_MAX_MANG),
                           leg_max(RIGHT_LEG_MIN_MANG, RIGHT_LEG_MAX_MANG));
 }
-//Çå³ý±àÂëÆ÷ÖµPID£¬ÖØÖÃÏà¹Ø×´Ì¬
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÖµPIDï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
 static void leg_clear_mang_pid(void)
 {
   left_control_mang.Integral = 0;
@@ -582,7 +581,7 @@ static void leg_clear_mang_pid(void)
   left_mang_last_error = 0;
   right_mang_last_error = 0;
 }
-//ÅäÖÃµç»úÁ¦¾ØÏÞÖÆ
+//ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void Leg_Control_Config_MotorLimit(MOTOR_DM *left_motor, MOTOR_DM *right_motor)
 {
   if (left_motor != 0)
@@ -724,7 +723,7 @@ void Leg_Control_Update(const LegControlInput *input)
       leg_set_balance_output_custom(input,
                                     leg_player_static_hold_torque,
                                     0,
-                                    30.0f,
+                                    10.0f,
                                     LEG_STATIC_DAMPING_GAIN,
                                     LEG_STATIC_DAMPING_SPEED_DEADZONE);
       leg_sync_output();
@@ -759,7 +758,7 @@ void Leg_Control_Update(const LegControlInput *input)
       leg_sync_output();
       return;
     }
-    leg_set_balance_output(input, leg_roll_cmd, leg_pitch_cmd, 38.0f);
+    leg_set_balance_output(input, leg_roll_cmd, leg_pitch_cmd, 20.0f);
   }
   else
   {
@@ -806,6 +805,9 @@ float Leg_Control_Get_Roll_Cmd(void)
 void Leg_SMC_Control(const LegControlInput *input)
 {
   static f now_left_mang_cmd, now_right_mang_cmd;
+  static f leg_smc_last_left_torque, leg_smc_last_right_torque;
+  static u8 leg_height_mode_last = 0;
+  static u8 leg_smc_mode_last = 0;
   if (input == 0 || input->left_motor == 0 || input->right_motor == 0)
   {
     leg_output.left_torque = 0;
@@ -813,20 +815,31 @@ void Leg_SMC_Control(const LegControlInput *input)
     leg_dm_mit_kd = LEG_DM_MIT_KD;
     leg_roll_cmd = 0;
     leg_pitch_cmd = 0;
+    leg_height_mode_last = 0;
+    leg_smc_mode_last = 0;
+    leg_clear_mang_pid();
     leg_sync_output();
     return;
   }
 
-  if(input->yk_mode == CONTROL_MODE || input->yk_mode == PLAYER_MODE || input->yk_mode == XTL_MODE)
+  u8 leg_height_mode_now = (input->yk_mode == FAST_CHASSIC ||
+                            (input->yk_mode == PLAYER_MODE && leg_control_mode));
+
+  if (leg_height_mode_now)
   {
-    float roll_smc_iinput = input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE;
-    leg_roll_smc.ref = LEG_ROLL_KEEP_TARGET_ANGLE;
-    leg_roll_smc.SMC_Tick(LEG_ROLL_KEEP_TARGET_ANGLE,roll_smc_iinput,0,input->gimbal_roll,input->gimbal_roll_acc);
-    leg_roll_cmd = torque_return(leg_roll_smc.u);
-    leg_set_balance_output(input, leg_roll_cmd, 0, 38.0f);
-  }
-  else if (input->yk_mode == FAST_CHASSIC || (input->yk_mode == PLAYER_MODE && leg_control_mode))
-  {
+    leg_smc_mode_last = 0;
+    if (leg_height_mode_last == 0)
+    {
+      now_left_mang_cmd = LIMIT(input->left_motor->mang,
+                                leg_min(LEFT_LEG_MIN_MANG, LEFT_LEG_MAX_MANG),
+                                leg_max(LEFT_LEG_MIN_MANG, LEFT_LEG_MAX_MANG));
+      now_right_mang_cmd = LIMIT(input->right_motor->mang,
+                                 leg_min(RIGHT_LEG_MIN_MANG, RIGHT_LEG_MAX_MANG),
+                                 leg_max(RIGHT_LEG_MIN_MANG, RIGHT_LEG_MAX_MANG));
+      leg_clear_mang_pid();
+    }
+    leg_height_mode_last = 1;
+
     f target_step = 0;
     if (input->yk_mode == FAST_CHASSIC)
     {
@@ -838,18 +851,55 @@ void Leg_SMC_Control(const LegControlInput *input)
       target_step = input->key_ctrl ? -1.0f : 1.0f;
       target_step /= LEG_FAST_HEIGHT_TARGET_STEP_DIV / 10.0f;
     }
-      //ijijiji
+
     leg_dm_mit_kd = LEG_DM_MIT_KD;
     leg_roll_cmd = 0;
     leg_pitch_cmd = 0;
     leg_mang_target_add(&now_left_mang_cmd, &now_right_mang_cmd, target_step);
-    leg_control_left.SMC_Tick(now_left_mang_cmd,target_step, 0, input->left_motor->mang, input->left_motor->sp);
-    leg_control_right.SMC_Tick(now_right_mang_cmd,target_step, 0, input->right_motor->mang, input->right_motor->sp);
-    leg_output.left_torque =LIMIT(torque_return(leg_control_left.u), -LEG_FAST_HEIGHT_OUT_LIMIT, LEG_FAST_HEIGHT_OUT_LIMIT);
-    leg_output.right_torque = LIMIT(torque_return(leg_control_right.u), -LEG_FAST_HEIGHT_OUT_LIMIT, LEG_FAST_HEIGHT_OUT_LIMIT);
+    leg_output.left_torque = leg_fast_mang_cmd(&left_control_mang,
+                                               &left_control_sp,
+                                               now_left_mang_cmd,
+                                               input->left_motor->mang,
+                                               input->left_motor->sp,
+                                               &left_mang_ff,
+                                               &left_mang_last_error);
+    leg_output.right_torque = leg_fast_mang_cmd(&right_control_mang,
+                                                &right_control_sp,
+                                                now_right_mang_cmd,
+                                                input->right_motor->mang,
+                                                input->right_motor->sp,
+                                                &right_mang_ff,
+                                                &right_mang_last_error);
+  }
+  else if(input->yk_mode == CONTROL_MODE || input->yk_mode == PLAYER_MODE || input->yk_mode == XTL_MODE)
+  {
+    leg_height_mode_last = 0;
+    f last_left_torque = leg_output.left_torque;
+    f last_right_torque = leg_output.right_torque;
+    float roll_smc_iinput = input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE;
+    leg_roll_smc.ref = LEG_ROLL_KEEP_TARGET_ANGLE;
+    leg_roll_smc.SMC_Tick(LEG_ROLL_KEEP_TARGET_ANGLE,roll_smc_iinput,0,input->gimbal_roll,input->gimbal_roll_acc);
+    leg_roll_cmd = torque_return(leg_roll_smc.u);
+    leg_set_balance_output(input, leg_roll_cmd, 0, 45.0f);
+    if (leg_smc_mode_last == 0)
+    {
+      leg_smc_last_left_torque = last_left_torque;
+      leg_smc_last_right_torque = last_right_torque;
+    }
+    leg_smc_last_left_torque += LIMIT(leg_output.left_torque - leg_smc_last_left_torque,
+                                      -LEG_SMC_OUTPUT_SLEW_STEP,
+                                       LEG_SMC_OUTPUT_SLEW_STEP);
+    leg_smc_last_right_torque += LIMIT(leg_output.right_torque - leg_smc_last_right_torque,
+                                       -LEG_SMC_OUTPUT_SLEW_STEP,
+                                        LEG_SMC_OUTPUT_SLEW_STEP);
+    leg_output.left_torque = leg_smc_last_left_torque;
+    leg_output.right_torque = leg_smc_last_right_torque;
+    leg_smc_mode_last = 1;
   }
   else
   {
+    leg_height_mode_last = 0;
+    leg_smc_mode_last = 0;
     leg_target_angel = input->gimbal_roll;
     leg_reset_player_static_quiet();
     leg_clear_roll_pid();
