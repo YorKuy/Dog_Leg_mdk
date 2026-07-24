@@ -8,26 +8,26 @@ GraphedExpression="M3508_1", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#b3c38e, Sh
 GraphedExpression="M3508_2", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#ab7b05, Show=0
 GraphedExpression="M3508_3", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#7fd3b7, Show=0
 GraphedExpression="M3508_4", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#50328f, Show=0
-OpenDocument="stm32f4xx_hal_can.c", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c", Line=1543
+OpenDocument="main.c", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Core/Src/main.c", Line=768
 OpenDocument="stm32f4xx_hal.c", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c", Line=315
 OpenDocument="stm32f4xx_hal_uart.c", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c", Line=3190
-OpenDocument="leg.cpp", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Control_Lib/leg.cpp", Line=566
+OpenDocument="leg.cpp", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Control_Lib/leg.cpp", Line=388
 OpenDocument="RM_Lib.h", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/RM2023_Lib_V1.2/RM_Lib.h", Line=924
 OpenDocument="RM_Lib.cpp", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/RM2023_Lib_V1.2/RM_Lib.cpp", Line=1076
-OpenDocument="main.c", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Core/Src/main.c", Line=768
+OpenDocument="stm32f4xx_hal_can.c", FilePath="/home/yorkuy/Code/Dog_Leg_mdk/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c", Line=1543
 OpenToolbar="Debug", Floating=0, x=0, y=0
-OpenWindow="Call Stack", DockArea=LEFT, x=0, y=1, w=322, h=158, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Call Stack", DockArea=LEFT, x=0, y=1, w=322, h=164, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 OpenWindow="Memory 1", DockArea=BOTTOM, x=1, y=0, w=921, h=216, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x90
-OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=322, h=434, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=322, h=120, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Data Sampling", DockArea=RIGHT, x=0, y=1, w=663, h=318, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
-OpenWindow="Timeline", DockArea=RIGHT, x=0, y=0, w=663, h=400, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="1 ns / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="445;0", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="863;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="880;0"
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=322, h=420, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=322, h=128, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Data Sampling", DockArea=RIGHT, x=0, y=1, w=943, h=230, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
+OpenWindow="Timeline", DockArea=RIGHT, x=0, y=0, w=943, h=488, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="1 ns / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="726;0", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="526;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="543;0"
 OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=923, h=216, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Functions", SortCol="Name", SortOrder="DESCENDING", VisibleCols=["Name";"Address";"Size";"#Insts";"Class";"Source"], ColWidths=[1869;100;100;100;189;476]
 TableHeader="Call Stack", SortCol="Function", SortOrder="ASCENDING", VisibleCols=["Function";"Stack Frame";"Source";"PC";"Return Address";"Stack Used"], ColWidths=[105;105;189;100;100;100]
 TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" (Left_Leg).mang";" (Right_Leg).mang";" Gimbal_Pitch";" Gimbal_Roll";" M3508_1";" M3508_2";" M3508_3";" M3508_4"], ColWidths=[100;100;100;100;100;100;100;100;100;100]
-TableHeader="Data Sampling Setup", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[196;105;100;100;100;100;100;105;100]
+TableHeader="Data Sampling Setup", SortCol="Type", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[196;105;100;100;100;100;100;100;105]
 TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
 TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh";"Access"], ColWidths=[100;100;100;100;100]
 TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
