@@ -394,7 +394,7 @@ void Leg_SMC_Control(const LegControlInput *input)
     leg_roll_smc.ref = LEG_ROLL_KEEP_TARGET_ANGLE;
     leg_roll_smc.SMC_Tick(LEG_ROLL_KEEP_TARGET_ANGLE,roll_smc_iinput,0,input->gimbal_roll,input->gimbal_roll_acc);
     leg_roll_cmd = torque_return(leg_roll_smc.u);
-    leg_set_balance_output(input, leg_roll_cmd, 0, 45.0f);
+    leg_set_balance_output(input, leg_roll_cmd, 0, 40.0f);
     if (leg_smc_mode_last == 0)
     {
       leg_smc_last_left_torque = last_left_torque;
