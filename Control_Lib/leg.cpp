@@ -23,8 +23,55 @@ typedef uint8_t u8;
 #define LEG_PITCH_BALANCE_SIGN -1.0f
 #define LEG_PITCH_OUTPUT_LIMIT 18.0f
 #define LEG_ROLL_BALANCE_SIGN -1.0f
-#define LEG_ROLL_KEEP_TARGET_ANGLE 0.0f
-#define LEG_SMC_OUTPUT_SLEW_STEP 5.0f
+#define LEG_ROLL_KEEP_TARGET_ANGLE 1.0f
+#define LEG_SMC_OUTPUT_SLEW_STEP 1.25f
+
+// Dynamic compensation parameters. The active loop runs at 1 kHz.
+#define LEG_CONTROL_DT_DEFAULT 0.001f
+#define LEG_ACCEL_FF_ACCEL_TIME_CONSTANT 0.020f
+#define LEG_ACCEL_FF_BRAKE_TIME_CONSTANT 0.008f
+#define LEG_ACCEL_FF_DECAY_TIME 0.030f
+#define LEG_DYNAMIC_AUX_LIMIT 8.0f
+#define LEG_HEIGHT_DAMPING_LIMIT 5.0f
+#define LEG_HEIGHT_SPEED_FILTER_TIME_CONSTANT 0.016f
+// Verified mechanism relation: height increasing drives physical pitch negative.
+// A positive roll command lowers the leg, so this sign produces true damping.
+#define LEG_HEIGHT_DAMPING_TO_ROLL_SIGN 1.0f
+
+// Physical roll correction. Positive command retracts the left leg; negative
+// command retracts the right leg. Only the selected side receives correction.
+#define LEG_ROLL_BALANCE_FILTER_TIME_CONSTANT 0.010f
+#define LEG_ROLL_RATE_FILTER_TIME_CONSTANT 0.020f
+#define LEG_ROLL_RETRACT_SOFT_ZONE 0.05f
+
+// Forward slope/support detection and one-way height hold.
+#define LEG_SLOPE_FORWARD_ENTER 120.0f
+#define LEG_SLOPE_FORWARD_EXIT 60.0f
+#define LEG_SLOPE_PITCH_ENTER 2.0f
+#define LEG_SLOPE_STALL_ENTER 0.20f
+#define LEG_SLOPE_SMC_ENTER 6.0f
+#define LEG_SLOPE_CONFIRM_TIME 0.032f
+#define LEG_SLOPE_CANDIDATE_TIMEOUT 0.300f
+#define LEG_SUPPORT_TIMEOUT 2.500f
+#define LEG_HEIGHT_HOLD_DEADZONE 0.005f
+#define LEG_HEIGHT_REF_RELEASE_RATE 0.01f
+#define LEG_HEIGHT_TO_ROLL_SIGN -1.0f
+#define LEG_HEIGHT_EMERGENCY_PITCH 8.0f
+#define LEG_HEIGHT_EMERGENCY_RATE 60.0f
+
+// Rear-wheel unloading catch.
+#define LEG_UNLOAD_HEIGHT_SPEED -0.25f
+#define LEG_UNLOAD_TORQUE_DROP_RATIO 0.70f
+#define LEG_UNLOAD_PITCH_RATE 15.0f
+#define LEG_UNLOAD_CONFIRM_TIME 0.008f
+#define LEG_UNLOAD_MIN_TIME 0.080f
+#define LEG_UNLOAD_MAX_TIME 0.200f
+#define LEG_UNLOAD_TORQUE_LIMIT 30.0f
+#define LEG_UNLOAD_RETRACT_SLEW_PER_STEP 0.30f
+#define LEG_UNLOAD_BRAKE_SLEW_PER_STEP 0.80f
+#define LEG_UNLOAD_DAMPING_GAIN 1.80f
+#define LEG_UNLOAD_MIT_KD 4.20f
+#define LEG_SETTLE_TIME 0.250f
 
 // FAST/PLAYER 腿长串级 PID
 #define LEG_FAST_HEIGHT_KP 242.0f
@@ -46,7 +93,7 @@ static PID_class left_control_mang(120.0f, 0.0f, 0.0f, 84.0f, 0.0f, 0.0f, 84.0f,
     right_control_mang(120.0f, 0.0f, 0.0f, 84.0f, 0.0f, 0.0f, 84.0f, 0.06f, 0.0f),
     right_control_sp(0.32f, 0.0f, 0.0f, 20.0f, 0.0f, 0.0f, 20.0f, 0.20f, 0.0f);
 
-static SMC_PITCH leg_roll_smc(42, 55, 1.05f, 0.5f, 8000, 0.8f, 1.0f);
+static SMC_PITCH leg_roll_smc(48, 65, 1.05f, 1.5f, 8000, 0.8f, 1.0f);
 static UpDown_check_class leg_mode_key(0);
 static u8 leg_control_mode = 0;
 static f leg_dm_mit_kd = LEG_DM_MIT_KD;
@@ -56,7 +103,44 @@ static f left_mang_ff;
 static f right_mang_ff;
 static f left_mang_last_error;
 static f right_mang_last_error;
-static LegControlOutput leg_output = {0.0f, 0.0f, LEG_DM_MIT_KD, 0.0f, 0.0f};
+static LegControlOutput leg_output = {0};
+
+volatile uint8_t leg_enable_accel_feedforward = 1;
+volatile uint8_t leg_enable_forward_jerk_limit = 0;
+volatile uint8_t leg_enable_height_damping = 1;
+volatile uint8_t leg_enable_slope_hold = 0;
+volatile uint8_t leg_enable_unload_catch = 0;
+volatile uint8_t leg_enable_roll_balance = 1;
+volatile float leg_accel_ff_accel_gain = 2.50f;
+volatile float leg_accel_ff_brake_gain = 2.80f;
+volatile float leg_accel_ff_limit = 6.0f;
+volatile float leg_height_damping_gain = 3.5f;
+volatile float leg_height_hold_kp = 60.0f;
+volatile float leg_height_hold_kd = 3.0f;
+volatile float leg_height_hold_limit = 6.0f;
+volatile float leg_roll_balance_kp = 1.50f;
+volatile float leg_roll_balance_kd = 0.10f;
+volatile float leg_roll_balance_limit = 10.0f;
+volatile float leg_roll_balance_direction = 1.0f;
+volatile uint32_t leg_dm_pair_send_ok_count;
+volatile uint32_t leg_dm_pair_send_fail_count;
+volatile uint16_t leg_dm_pair_send_consecutive_fail;
+
+static LegDynamicState leg_dynamic_state = LEG_DYNAMIC_NORMAL;
+static f leg_dynamic_state_time;
+static f leg_slope_confirm_time;
+static f leg_unload_confirm_time;
+static f leg_height_reference;
+static f leg_height_last;
+static f leg_height_speed_filtered;
+static f leg_feedback_torque_peak;
+static f leg_accel_ff_filtered;
+static f leg_last_forward_cmd;
+static f leg_forward_motion_sign;
+static f leg_roll_rate_filtered;
+static f leg_roll_balance_filtered;
+static u8 leg_height_initialized;
+static u8 leg_forward_initialized;
 
 // 将 SMC 原始输出换算为电机力矩。
 static f torque_return(f u)
@@ -75,11 +159,310 @@ static f leg_max(f a, f b)
   return (a > b) ? a : b;
 }
 
+static f leg_valid_dt(f dt)
+{
+  if (dt < 0.0005f || dt > 0.02f)
+    return LEG_CONTROL_DT_DEFAULT;
+  return dt;
+}
+
+static f leg_normalized_height(f angle, f min_angle, f max_angle)
+{
+  f range = max_angle - min_angle;
+  if (fabsf(range) < 1e-6f)
+    return 0.0f;
+  return LIMIT((angle - min_angle) / range, 0.0f, 1.0f);
+}
+
+static void leg_update_height(const LegControlInput *input, f dt)
+{
+  f left_height = leg_normalized_height(input->left_motor->mang,
+                                        LEFT_LEG_MIN_MANG, LEFT_LEG_MAX_MANG);
+  f right_height = leg_normalized_height(input->right_motor->mang,
+                                         RIGHT_LEG_MIN_MANG, RIGHT_LEG_MAX_MANG);
+  leg_output.height = 0.5f * (left_height + right_height);
+
+  if (!leg_height_initialized)
+  {
+    leg_height_last = leg_output.height;
+    leg_height_reference = leg_output.height;
+    leg_height_speed_filtered = 0.0f;
+    leg_height_initialized = 1;
+  }
+
+  f derived_speed = (leg_output.height - leg_height_last) / dt;
+  f left_speed = input->left_motor->sp / (LEFT_LEG_MAX_MANG - LEFT_LEG_MIN_MANG);
+  f right_speed = input->right_motor->sp / (RIGHT_LEG_MAX_MANG - RIGHT_LEG_MIN_MANG);
+  f raw_height_speed = 0.3f * derived_speed +
+                       0.7f * 0.5f * (left_speed + right_speed);
+  f speed_alpha = dt / (LEG_HEIGHT_SPEED_FILTER_TIME_CONSTANT + dt);
+  leg_height_speed_filtered += speed_alpha *
+                               (raw_height_speed - leg_height_speed_filtered);
+  leg_output.height_speed = leg_height_speed_filtered;
+  leg_height_last = leg_output.height;
+}
+
+static void leg_enter_dynamic_state(LegDynamicState state)
+{
+  leg_dynamic_state = state;
+  leg_dynamic_state_time = 0.0f;
+  leg_slope_confirm_time = 0.0f;
+  leg_unload_confirm_time = 0.0f;
+
+  if (state == LEG_DYNAMIC_SUPPORT_HOLD || state == LEG_DYNAMIC_SETTLE)
+    leg_height_reference = leg_output.height;
+  if (state == LEG_DYNAMIC_SUPPORT_HOLD)
+    leg_feedback_torque_peak = 0.0f;
+}
+
+static void leg_update_dynamic_state(const LegControlInput *input, f smc_cmd, f dt)
+{
+  leg_dynamic_state_time += dt;
+
+  if (!leg_enable_slope_hold || input->forward_cmd < LEG_SLOPE_FORWARD_EXIT)
+  {
+    if (leg_dynamic_state != LEG_DYNAMIC_UNLOAD_CATCH)
+      leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
+  }
+
+  switch (leg_dynamic_state)
+  {
+    case LEG_DYNAMIC_NORMAL:
+      if (leg_enable_slope_hold && input->pitch_data_age <= 0.080f &&
+          input->yk_mode != XTL_MODE && !input->xtl_flag &&
+          input->forward_cmd > LEG_SLOPE_FORWARD_ENTER &&
+          fabsf(input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE) > LEG_SLOPE_PITCH_ENTER &&
+          input->wheel_stall_ratio > LEG_SLOPE_STALL_ENTER &&
+          fabsf(smc_cmd) > LEG_SLOPE_SMC_ENTER)
+        leg_enter_dynamic_state(LEG_DYNAMIC_SLOPE_CANDIDATE);
+      break;
+
+    case LEG_DYNAMIC_SLOPE_CANDIDATE:
+      if (input->pitch_data_age > 0.080f || input->yk_mode == XTL_MODE ||
+          input->xtl_flag || input->forward_cmd < LEG_SLOPE_FORWARD_EXIT ||
+          leg_dynamic_state_time > LEG_SLOPE_CANDIDATE_TIMEOUT)
+      {
+        leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
+        break;
+      }
+      if (fabsf(input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE) > LEG_SLOPE_PITCH_ENTER &&
+          input->wheel_stall_ratio > LEG_SLOPE_STALL_ENTER &&
+          fabsf(smc_cmd) > LEG_SLOPE_SMC_ENTER)
+      {
+        leg_slope_confirm_time += dt;
+        if (leg_slope_confirm_time >= LEG_SLOPE_CONFIRM_TIME)
+          leg_enter_dynamic_state(LEG_DYNAMIC_SUPPORT_HOLD);
+      }
+      else
+      {
+        leg_slope_confirm_time = 0.0f;
+      }
+      break;
+
+    case LEG_DYNAMIC_SUPPORT_HOLD:
+    {
+      if (leg_dynamic_state_time > LEG_SUPPORT_TIMEOUT ||
+          input->forward_cmd < LEG_SLOPE_FORWARD_EXIT)
+      {
+        leg_enter_dynamic_state(LEG_DYNAMIC_SETTLE);
+        break;
+      }
+
+      f feedback_torque = 0.5f *
+          (fabsf(input->left_motor->Torque) + fabsf(input->right_motor->Torque));
+      if (feedback_torque > leg_feedback_torque_peak)
+        leg_feedback_torque_peak = feedback_torque;
+
+      u8 torque_dropped = leg_feedback_torque_peak > 2.0f &&
+                          feedback_torque < leg_feedback_torque_peak *
+                                                LEG_UNLOAD_TORQUE_DROP_RATIO;
+      u8 unload = leg_output.height_speed < LEG_UNLOAD_HEIGHT_SPEED &&
+                  (torque_dropped ||
+                   fabsf(input->gimbal_roll_acc) > LEG_UNLOAD_PITCH_RATE);
+      if (leg_enable_unload_catch && unload)
+      {
+        leg_unload_confirm_time += dt;
+        if (leg_unload_confirm_time >= LEG_UNLOAD_CONFIRM_TIME)
+          leg_enter_dynamic_state(LEG_DYNAMIC_UNLOAD_CATCH);
+      }
+      else
+      {
+        leg_unload_confirm_time = 0.0f;
+      }
+      break;
+    }
+
+    case LEG_DYNAMIC_UNLOAD_CATCH:
+      if (!leg_enable_unload_catch || leg_dynamic_state_time >= LEG_UNLOAD_MAX_TIME ||
+          (leg_dynamic_state_time >= LEG_UNLOAD_MIN_TIME &&
+           fabsf(leg_output.height_speed) < 0.08f))
+        leg_enter_dynamic_state(LEG_DYNAMIC_SETTLE);
+      break;
+
+    case LEG_DYNAMIC_SETTLE:
+      if (leg_dynamic_state_time >= LEG_SETTLE_TIME)
+        leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
+      break;
+
+    default:
+      leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
+      break;
+  }
+}
+
+static f leg_accel_feedforward_update(const LegControlInput *input, f dt)
+{
+  f target = 0.0f;
+  u8 braking = 0;
+  if (!leg_forward_initialized)
+  {
+    leg_last_forward_cmd = input->forward_cmd;
+    if (fabsf(input->forward_cmd) > 10.0f)
+      leg_forward_motion_sign = (input->forward_cmd > 0.0f) ? 1.0f : -1.0f;
+    leg_forward_initialized = 1;
+  }
+
+  if (leg_enable_accel_feedforward && input->pitch_data_age <= 0.080f)
+  {
+    f acceleration = input->forward_accel;
+    if (!isfinite(acceleration))
+      acceleration = input->forward_cmd - leg_last_forward_cmd;
+    if (fabsf(input->forward_cmd) > 10.0f &&
+        input->forward_cmd * acceleration >= 0.0f)
+      leg_forward_motion_sign = (input->forward_cmd > 0.0f) ? 1.0f : -1.0f;
+
+    braking = fabsf(acceleration) > 0.01f &&
+              leg_forward_motion_sign * acceleration < 0.0f;
+    f gain = braking ? leg_accel_ff_brake_gain : leg_accel_ff_accel_gain;
+    target = LIMIT(gain * acceleration, -leg_accel_ff_limit, leg_accel_ff_limit);
+  }
+
+  leg_last_forward_cmd = input->forward_cmd;
+  f tau = LEG_ACCEL_FF_DECAY_TIME;
+  if (leg_enable_accel_feedforward && input->pitch_data_age <= 0.080f)
+    tau = braking ? LEG_ACCEL_FF_BRAKE_TIME_CONSTANT :
+                    LEG_ACCEL_FF_ACCEL_TIME_CONSTANT;
+  f alpha = dt / (tau + dt);
+  leg_accel_ff_filtered += alpha * (target - leg_accel_ff_filtered);
+  return leg_accel_ff_filtered;
+}
+
+static f leg_height_damping_update(void)
+{
+  if (!leg_enable_height_damping)
+    return 0.0f;
+  return LIMIT(LEG_HEIGHT_DAMPING_TO_ROLL_SIGN * leg_height_damping_gain *
+                   leg_output.height_speed,
+               -LEG_HEIGHT_DAMPING_LIMIT, LEG_HEIGHT_DAMPING_LIMIT);
+}
+
+static f leg_roll_balance_update(const LegControlInput *input, f dt)
+{
+  f target_rate = (input->roll_data_age <= 0.080f) ?
+                      input->gimbal_pitch_acc : 0.0f;
+  f rate_alpha = dt / (LEG_ROLL_RATE_FILTER_TIME_CONSTANT + dt);
+  leg_roll_rate_filtered += rate_alpha *
+                            (target_rate - leg_roll_rate_filtered);
+
+  f target_cmd = 0.0f;
+  if (leg_enable_roll_balance && input->roll_data_age <= 0.080f)
+  {
+    target_cmd = leg_roll_balance_direction *
+                 (leg_roll_balance_kp *
+                      (input->gimbal_pitch - LEG_PITCH_TARGET_ANGLE) +
+                  leg_roll_balance_kd * leg_roll_rate_filtered);
+    target_cmd = LIMIT(target_cmd, -leg_roll_balance_limit,
+                                   leg_roll_balance_limit);
+  }
+
+  f cmd_alpha = dt / (LEG_ROLL_BALANCE_FILTER_TIME_CONSTANT + dt);
+  leg_roll_balance_filtered += cmd_alpha *
+                               (target_cmd - leg_roll_balance_filtered);
+  return leg_roll_balance_filtered;
+}
+
+static f leg_retract_soft_scale(f angle, f min_angle, f max_angle)
+{
+  f height = leg_normalized_height(angle, min_angle, max_angle);
+  return LIMIT(height / LEG_ROLL_RETRACT_SOFT_ZONE, 0.0f, 1.0f);
+}
+
+static void leg_apply_roll_retract_only(const LegControlInput *input,
+                                        f roll_balance_cmd,
+                                        f torque_limit)
+{
+  if (roll_balance_cmd > 0.0f)
+  {
+    // Positive physical roll: retract the left leg only.
+    f scale = leg_retract_soft_scale(input->left_motor->mang,
+                                     LEFT_LEG_MIN_MANG, LEFT_LEG_MAX_MANG);
+    leg_output.left_torque = LIMIT(leg_output.left_torque -
+                                       roll_balance_cmd * scale,
+                                   -torque_limit, torque_limit);
+  }
+  else if (roll_balance_cmd < 0.0f)
+  {
+    // Negative physical roll: retract the right mirrored leg only.
+    f scale = leg_retract_soft_scale(input->right_motor->mang,
+                                     RIGHT_LEG_MIN_MANG, RIGHT_LEG_MAX_MANG);
+    leg_output.right_torque = LIMIT(leg_output.right_torque -
+                                        roll_balance_cmd * scale,
+                                    -torque_limit, torque_limit);
+  }
+}
+
+static f leg_height_hold_update(const LegControlInput *input, f dt)
+{
+  if (!leg_enable_slope_hold || leg_dynamic_state != LEG_DYNAMIC_SUPPORT_HOLD ||
+      fabsf(input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE) > LEG_HEIGHT_EMERGENCY_PITCH ||
+      fabsf(input->gimbal_roll_acc) > LEG_HEIGHT_EMERGENCY_RATE)
+    return 0.0f;
+
+  if (leg_output.height > leg_height_reference)
+    leg_height_reference = leg_output.height;
+  else
+    leg_height_reference = leg_max(leg_output.height,
+                                   leg_height_reference -
+                                       LEG_HEIGHT_REF_RELEASE_RATE * dt);
+
+  f error = leg_height_reference - leg_output.height - LEG_HEIGHT_HOLD_DEADZONE;
+  if (error < 0.0f)
+    error = 0.0f;
+  f retract_speed = (leg_output.height_speed < 0.0f) ?
+                        -leg_output.height_speed : 0.0f;
+  f extension_cmd = leg_height_hold_kp * error +
+                    leg_height_hold_kd * retract_speed;
+  return LEG_HEIGHT_TO_ROLL_SIGN *
+         LIMIT(extension_cmd, 0.0f, leg_height_hold_limit);
+}
+
 static void leg_sync_output(void)
 {
   leg_output.mit_kd = leg_dm_mit_kd;
   leg_output.roll_cmd = leg_roll_cmd;
   leg_output.pitch_cmd = leg_pitch_cmd;
+  leg_output.dynamic_state = (uint8_t)leg_dynamic_state;
+}
+
+static f leg_limit_retract_torque(f torque, f angle_range, f limit)
+{
+  if (torque * angle_range >= 0.0f)
+    return torque;
+  return LIMIT(torque, -limit, limit);
+}
+
+static f leg_unload_slew(f target, f last, f angle_range)
+{
+  f target_motion = target * angle_range;
+  f last_motion = last * angle_range;
+  f step = LEG_SMC_OUTPUT_SLEW_STEP;
+
+  if (target_motion < last_motion && target_motion < 0.0f)
+    step = LEG_UNLOAD_RETRACT_SLEW_PER_STEP;
+  else if (target_motion > last_motion && last_motion < 0.0f)
+    step = LEG_UNLOAD_BRAKE_SLEW_PER_STEP;
+
+  return last + LIMIT(target - last, -step, step);
 }
 // 加入关节速度阻尼并限制最终力矩。
 static f leg_apply_joint_damping_custom(f torque_cmd,
@@ -136,19 +519,6 @@ static void leg_set_balance_output_custom(const LegControlInput *input,
                                      torque_limit,
                                      damping_gain,
                                      speed_deadzone);
-}
-// 使用默认关节阻尼生成平衡输出。
-static void leg_set_balance_output(const LegControlInput *input,
-                                   f roll_cmd,
-                                   f pitch_cmd,
-                                   f torque_limit)
-{
-  leg_set_balance_output_custom(input,
-                                roll_cmd,
-                                pitch_cmd,
-                                torque_limit,
-                                LEG_JOINT_DAMPING_GAIN,
-                                LEG_JOINT_DAMPING_SPEED_DEADZONE);
 }
 // 腿长角度外环、速度内环及误差增长前馈。
 static f leg_fast_mang_cmd(PID_class *mang_pid,
@@ -353,6 +723,22 @@ float Leg_Control_Get_Roll_Cmd(void)
 {
   return leg_output.roll_cmd;
 }
+
+void Leg_Control_Report_OutputPairResult(uint8_t success)
+{
+  if (success)
+  {
+    leg_dm_pair_send_ok_count++;
+    leg_dm_pair_send_consecutive_fail = 0;
+  }
+  else
+  {
+    leg_dm_pair_send_fail_count++;
+    if (leg_dm_pair_send_consecutive_fail < 0xFFFFU)
+      leg_dm_pair_send_consecutive_fail++;
+  }
+}
+
 void Leg_SMC_Control(const LegControlInput *input)
 {
   static f now_left_mang_cmd, now_right_mang_cmd;
@@ -368,10 +754,23 @@ void Leg_SMC_Control(const LegControlInput *input)
     leg_pitch_cmd = 0;
     leg_height_mode_last = 0;
     leg_smc_mode_last = 0;
+    leg_height_initialized = 0;
+    leg_forward_initialized = 0;
+    leg_roll_rate_filtered = 0.0f;
+    leg_roll_balance_filtered = 0.0f;
+    leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
     leg_clear_mang_pid();
     leg_sync_output();
     return;
   }
+
+  f dt = leg_valid_dt(input->dt);
+  leg_update_height(input, dt);
+  leg_output.smc_cmd = 0.0f;
+  leg_output.accel_ff_cmd = 0.0f;
+  leg_output.height_damping_cmd = 0.0f;
+  leg_output.height_hold_cmd = 0.0f;
+  leg_output.roll_balance_cmd = 0.0f;
 
   u8 leg_height_mode_now = (input->yk_mode == FAST_CHASSIC ||
                             (input->yk_mode == PLAYER_MODE && leg_control_mode));
@@ -379,6 +778,11 @@ void Leg_SMC_Control(const LegControlInput *input)
   if (leg_height_mode_now)
   {
     leg_smc_mode_last = 0;
+    leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
+    leg_accel_ff_filtered = 0.0f;
+    leg_forward_initialized = 0;
+    leg_roll_rate_filtered = 0.0f;
+    leg_roll_balance_filtered = 0.0f;
     if (leg_height_mode_last == 0)
       leg_init_height_target(input, &now_left_mang_cmd, &now_right_mang_cmd);
     leg_height_mode_last = 1;
@@ -393,19 +797,74 @@ void Leg_SMC_Control(const LegControlInput *input)
     float roll_smc_iinput = input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE;
     leg_roll_smc.ref = LEG_ROLL_KEEP_TARGET_ANGLE;
     leg_roll_smc.SMC_Tick(LEG_ROLL_KEEP_TARGET_ANGLE,roll_smc_iinput,0,input->gimbal_roll,input->gimbal_roll_acc);
-    leg_roll_cmd = torque_return(leg_roll_smc.u);
-    leg_set_balance_output(input, leg_roll_cmd, 0, 40.0f);
+    leg_output.smc_cmd = torque_return(leg_roll_smc.u);
+    leg_update_dynamic_state(input, leg_output.smc_cmd, dt);
+    leg_output.accel_ff_cmd = leg_accel_feedforward_update(input, dt);
+    leg_output.height_damping_cmd = leg_height_damping_update();
+    leg_output.height_hold_cmd = leg_height_hold_update(input, dt);
+    leg_output.roll_balance_cmd = leg_roll_balance_update(input, dt);
+
+    f auxiliary_cmd = LIMIT(leg_output.accel_ff_cmd +
+                                leg_output.height_damping_cmd +
+                                leg_output.height_hold_cmd,
+                            -LEG_DYNAMIC_AUX_LIMIT, LEG_DYNAMIC_AUX_LIMIT);
+    leg_roll_cmd = leg_output.smc_cmd + auxiliary_cmd;
+    leg_pitch_cmd = 0.0f;
+
+    f damping_gain = LEG_JOINT_DAMPING_GAIN;
+    f torque_limit = 40.0f;
+    if (leg_enable_unload_catch &&
+        leg_dynamic_state == LEG_DYNAMIC_UNLOAD_CATCH)
+    {
+      damping_gain = LEG_UNLOAD_DAMPING_GAIN;
+      leg_dm_mit_kd = LEG_UNLOAD_MIT_KD;
+    }
+    else
+    {
+      leg_dm_mit_kd = LEG_DM_MIT_KD;
+    }
+
+    leg_set_balance_output_custom(input, leg_roll_cmd, leg_pitch_cmd, torque_limit,
+                                  damping_gain,
+                                  LEG_JOINT_DAMPING_SPEED_DEADZONE);
+    leg_apply_roll_retract_only(input, leg_output.roll_balance_cmd, torque_limit);
+
+    if (leg_enable_unload_catch &&
+        leg_dynamic_state == LEG_DYNAMIC_UNLOAD_CATCH)
+    {
+      leg_output.left_torque = leg_limit_retract_torque(
+          leg_output.left_torque,
+          LEFT_LEG_MAX_MANG - LEFT_LEG_MIN_MANG,
+          LEG_UNLOAD_TORQUE_LIMIT);
+      leg_output.right_torque = leg_limit_retract_torque(
+          leg_output.right_torque,
+          RIGHT_LEG_MAX_MANG - RIGHT_LEG_MIN_MANG,
+          LEG_UNLOAD_TORQUE_LIMIT);
+    }
     if (leg_smc_mode_last == 0)
     {
       leg_smc_last_left_torque = last_left_torque;
       leg_smc_last_right_torque = last_right_torque;
     }
-    leg_smc_last_left_torque += LIMIT(leg_output.left_torque - leg_smc_last_left_torque,
-                                      -LEG_SMC_OUTPUT_SLEW_STEP,
-                                       LEG_SMC_OUTPUT_SLEW_STEP);
-    leg_smc_last_right_torque += LIMIT(leg_output.right_torque - leg_smc_last_right_torque,
-                                       -LEG_SMC_OUTPUT_SLEW_STEP,
-                                        LEG_SMC_OUTPUT_SLEW_STEP);
+    if (leg_enable_unload_catch &&
+        leg_dynamic_state == LEG_DYNAMIC_UNLOAD_CATCH)
+    {
+      leg_smc_last_left_torque = leg_unload_slew(
+          leg_output.left_torque, leg_smc_last_left_torque,
+          LEFT_LEG_MAX_MANG - LEFT_LEG_MIN_MANG);
+      leg_smc_last_right_torque = leg_unload_slew(
+          leg_output.right_torque, leg_smc_last_right_torque,
+          RIGHT_LEG_MAX_MANG - RIGHT_LEG_MIN_MANG);
+    }
+    else
+    {
+      leg_smc_last_left_torque += LIMIT(leg_output.left_torque - leg_smc_last_left_torque,
+                                        -LEG_SMC_OUTPUT_SLEW_STEP,
+                                         LEG_SMC_OUTPUT_SLEW_STEP);
+      leg_smc_last_right_torque += LIMIT(leg_output.right_torque - leg_smc_last_right_torque,
+                                         -LEG_SMC_OUTPUT_SLEW_STEP,
+                                          LEG_SMC_OUTPUT_SLEW_STEP);
+    }
     leg_output.left_torque = leg_smc_last_left_torque;
     leg_output.right_torque = leg_smc_last_right_torque;
     leg_smc_mode_last = 1;
@@ -414,6 +873,11 @@ void Leg_SMC_Control(const LegControlInput *input)
   {
     leg_height_mode_last = 0;
     leg_smc_mode_last = 0;
+    leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
+    leg_accel_ff_filtered = 0.0f;
+    leg_forward_initialized = 0;
+    leg_roll_rate_filtered = 0.0f;
+    leg_roll_balance_filtered = 0.0f;
     leg_roll_cmd = 0;
     leg_pitch_cmd = 0;
     leg_output.left_torque = 0;

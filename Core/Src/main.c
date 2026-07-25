@@ -59,6 +59,34 @@ typedef struct
   float KlimitGain;
   float used_power;
 } DP_Power_Limit_t;
+
+typedef struct
+{
+  uint32_t tick_ms;
+  float pitch;
+  float pitch_rate;
+  float roll;
+  float roll_rate;
+  float left_angle;
+  float right_angle;
+  float left_speed;
+  float right_speed;
+  float left_feedback_torque;
+  float right_feedback_torque;
+  float forward_cmd;
+  float forward_accel;
+  float wheel_stall_ratio;
+  float smc_cmd;
+  float accel_ff_cmd;
+  float height_damping_cmd;
+  float height_hold_cmd;
+  float roll_balance_cmd;
+  float height;
+  float height_speed;
+  float left_cmd;
+  float right_cmd;
+  uint8_t state;
+} LegTraceSample;
 struct DP_Motor_FP
 {
   u8 M3508_Flag;
@@ -144,6 +172,8 @@ f XTL_PID_OUT;
 float what, why;
 uint16_t Flag;
 float Gimbal_Roll, Gimbal_Pitch, Gimbal_Roll_Acc, Gimbal_Pitch_Acc;
+static uint32_t Gimbal_Roll_Tick, Gimbal_Pitch_Tick;
+static uint32_t Gimbal_Roll_Acc_Tick, Gimbal_Pitch_Acc_Tick;
 float V_Bat, V_Cap, V_Load;
 static u8 v_can_buff;
 float V_Bat_Real, V_Cap_Real, V_Load_Real;
@@ -273,6 +303,136 @@ void F_slow(float *in, float target, float add_inc, float cut_inc, float stop_er
 }
 float fb_add_sp = 1, fb_cut_sp = 2.5, lr_add_sp = 1, lr_cut_sp = 2.5;
 static float Chassic_Ch0_Real, Chassic_Ch1_Real, Chassic_Ch2_Real;
+static float Leg_Forward_Accel;
+static float Leg_Forward_Accel_State;
+static float Leg_Forward_Last_Cmd;
+static uint8_t Leg_Forward_State_Valid;
+static uint8_t Leg_Forward_Last_Mode;
+static uint8_t Leg_Forward_Last_Xtl;
+
+#define LEG_TRACE_SAMPLE_COUNT 512U
+volatile LegTraceSample leg_trace_buffer[LEG_TRACE_SAMPLE_COUNT];
+volatile uint16_t leg_trace_write_index;
+volatile uint16_t leg_trace_valid_count;
+volatile uint16_t leg_trace_post_remaining;
+volatile uint8_t leg_trace_armed = 1;
+volatile uint8_t leg_trace_triggered;
+volatile uint8_t leg_trace_frozen;
+volatile uint8_t leg_trace_trigger_request;
+volatile uint8_t leg_trace_rearm_request;
+
+static void Leg_Trace_Update(const LegControlInput *input,
+                             const LegControlOutput *output)
+{
+  static uint8_t divider;
+  static uint8_t last_state;
+
+  if (leg_trace_rearm_request)
+  {
+    leg_trace_write_index = 0;
+    leg_trace_valid_count = 0;
+    leg_trace_post_remaining = 0;
+    leg_trace_triggered = 0;
+    leg_trace_frozen = 0;
+    leg_trace_armed = 1;
+    leg_trace_rearm_request = 0;
+    divider = 0;
+  }
+
+  if (leg_trace_frozen || ++divider < 8)
+    return;
+  divider = 0;
+
+  uint16_t index = leg_trace_write_index;
+  volatile LegTraceSample *sample = &leg_trace_buffer[index];
+  sample->tick_ms = HAL_GetTick();
+  sample->pitch = input->gimbal_roll;
+  sample->pitch_rate = input->gimbal_roll_acc;
+  sample->roll = input->gimbal_pitch;
+  sample->roll_rate = input->gimbal_pitch_acc;
+  sample->left_angle = input->left_motor->mang;
+  sample->right_angle = input->right_motor->mang;
+  sample->left_speed = input->left_motor->sp;
+  sample->right_speed = input->right_motor->sp;
+  sample->left_feedback_torque = input->left_motor->Torque;
+  sample->right_feedback_torque = input->right_motor->Torque;
+  sample->forward_cmd = input->forward_cmd;
+  sample->forward_accel = input->forward_accel;
+  sample->wheel_stall_ratio = input->wheel_stall_ratio;
+  sample->smc_cmd = output->smc_cmd;
+  sample->accel_ff_cmd = output->accel_ff_cmd;
+  sample->height_damping_cmd = output->height_damping_cmd;
+  sample->height_hold_cmd = output->height_hold_cmd;
+  sample->roll_balance_cmd = output->roll_balance_cmd;
+  sample->height = output->height;
+  sample->height_speed = output->height_speed;
+  sample->left_cmd = output->left_torque;
+  sample->right_cmd = output->right_torque;
+  sample->state = output->dynamic_state;
+
+  leg_trace_write_index = (uint16_t)((index + 1U) % LEG_TRACE_SAMPLE_COUNT);
+  if (leg_trace_valid_count < LEG_TRACE_SAMPLE_COUNT)
+    leg_trace_valid_count++;
+
+  uint8_t automatic_trigger =
+      (output->dynamic_state == LEG_DYNAMIC_SUPPORT_HOLD ||
+       output->dynamic_state == LEG_DYNAMIC_UNLOAD_CATCH) &&
+      last_state != output->dynamic_state;
+  if (leg_trace_armed && (leg_trace_trigger_request || automatic_trigger ||
+                          fabsf(input->forward_accel) > 2.0f))
+  {
+    leg_trace_triggered = 1;
+    leg_trace_armed = 0;
+    leg_trace_post_remaining = LEG_TRACE_SAMPLE_COUNT / 2U;
+    leg_trace_trigger_request = 0;
+  }
+
+  if (leg_trace_triggered && leg_trace_post_remaining > 0U)
+  {
+    leg_trace_post_remaining--;
+    if (leg_trace_post_remaining == 0U)
+      leg_trace_frozen = 1;
+  }
+  last_state = output->dynamic_state;
+}
+
+static float Leg_Approach(float now, float target, float step)
+{
+  if (now < target)
+    return (now + step > target) ? target : now + step;
+  if (now > target)
+    return (now - step < target) ? target : now - step;
+  return now;
+}
+
+// Jerk-limited replacement for the existing forward speed ramp. The maximum
+// acceleration remains 1.0/2.5 command units per TIM3 period.
+static void Leg_Forward_SCurve(float *value, float target)
+{
+  float desired_accel;
+  float error = target - *value;
+  float accel_limit = (fabsf(target) > fabsf(*value) && target * (*value) >= 0.0f) ?
+                          fb_add_sp : fb_cut_sp;
+
+  if (fabsf(error) < 0.001f)
+    desired_accel = 0.0f;
+  else
+    desired_accel = (error > 0.0f) ? accel_limit : -accel_limit;
+
+  // Reach the requested acceleration in about 20 ms (10 TIM3 periods).
+  Leg_Forward_Accel_State = Leg_Approach(Leg_Forward_Accel_State,
+                                         desired_accel,
+                                         accel_limit / 10.0f);
+  if (fabsf(error) <= fabsf(Leg_Forward_Accel_State))
+  {
+    *value = target;
+    Leg_Forward_Accel_State = 0.0f;
+  }
+  else
+  {
+    *value += Leg_Forward_Accel_State;
+  }
+}
 static void Chassic_axis_slow(float *real, float target, float add_sp, float cut_sp)
 {
   if (*real > 0)
@@ -297,7 +457,11 @@ void KEY_Forback_Ctrl1(void)
     LR_Speed = (YK.Pressed_Check(KEY_PRESSED_D) - YK.Pressed_Check(KEY_PRESSED_A)) * Target_Speed;
   }
 
-  if (FB_Real_Speed > 0)
+  if (leg_enable_forward_jerk_limit)
+  {
+    Leg_Forward_SCurve(&FB_Real_Speed, FB_Speed);
+  }
+  else if (FB_Real_Speed > 0)
   {
     F_slow(&FB_Real_Speed, FB_Speed, fb_add_sp, fb_cut_sp, fb_cut_sp);
   }
@@ -313,6 +477,48 @@ void KEY_Forback_Ctrl1(void)
   {
     F_slow(&LR_Real_Speed, LR_Speed, lr_cut_sp, lr_add_sp, lr_cut_sp);
   }
+}
+
+// Preserve the coordinate selection used by the earlier PID feedforward code.
+static float Leg_Get_Forward_Command(void)
+{
+  if (YK_Mode == PLAYER_MODE)
+  {
+    float player_fb = FB_Real_Speed;
+    float player_lr = LR_Real_Speed;
+    if (XTL_Flag)
+    {
+      player_fb = FB_Real_Speed * cos_theta + LR_Real_Speed * sin_theta;
+      player_lr = LR_Real_Speed * cos_theta - FB_Real_Speed * sin_theta;
+    }
+    if (fabsf(player_lr) > 120.0f && fabsf(player_fb) < fabsf(player_lr))
+      return -player_lr;
+    return player_fb;
+  }
+  if (YK_Mode == CONTROL_MODE)
+    return (fabsf(Chassic_Ch1_Real) > 120.0f) ? -Chassic_Ch1_Real : 0.0f;
+  if (YK_Mode == XTL_MODE)
+    return Chassic_Ch0_Real;
+  return 0.0f;
+}
+
+static void Leg_Update_Forward_State(float dt)
+{
+  float cmd = Leg_Get_Forward_Command();
+  if (!Leg_Forward_State_Valid || Leg_Forward_Last_Mode != YK_Mode ||
+      Leg_Forward_Last_Xtl != XTL_Flag)
+  {
+    Leg_Forward_Last_Cmd = cmd;
+    Leg_Forward_Accel = 0.0f;
+    Leg_Forward_State_Valid = 1;
+    Leg_Forward_Last_Mode = YK_Mode;
+    Leg_Forward_Last_Xtl = XTL_Flag;
+    return;
+  }
+
+  // Express acceleration as command increment per legacy 4 ms leg-control step.
+  Leg_Forward_Accel = (cmd - Leg_Forward_Last_Cmd) * (0.004f / dt);
+  Leg_Forward_Last_Cmd = cmd;
 }
 void Chassic_Forback_Ctrl(void)
 {
@@ -483,14 +689,27 @@ void Communicate_deal()
     angle.c[1] = CAN_Communicate.rx_buf[2];
     angle.c[2] = CAN_Communicate.rx_buf[3];
     angle.c[3] = CAN_Communicate.rx_buf[4];
+    uint32_t now_tick = HAL_GetTick();
     if (CAN_Communicate.rx_buf[0] == 0)
+    {
       Gimbal_Roll = angle.f;
+      Gimbal_Roll_Tick = now_tick;
+    }
     else if (CAN_Communicate.rx_buf[0] == 1)
+    {
       Gimbal_Pitch = angle.f;
+      Gimbal_Pitch_Tick = now_tick;
+    }
     else if (CAN_Communicate.rx_buf[0] == 2)
+    {
       Gimbal_Roll_Acc = angle.f;
+      Gimbal_Roll_Acc_Tick = now_tick;
+    }
     else if (CAN_Communicate.rx_buf[0] == 3)
+    {
       Gimbal_Pitch_Acc = angle.f;
+      Gimbal_Pitch_Acc_Tick = now_tick;
+    }
   }
   if (CAN_Communicate.RxHeader.StdId == 0x120) // 接收数控板发送的数据，包括电容电�??
   {
@@ -1056,19 +1275,48 @@ uint16_t d6[8][5]{{0}, {0}, {10, 10, 10}, {730, 830, 930}, {190, 190, 190}, {0, 
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if (htim == &htim3) // 2k
+  if (htim == &htim3) // 1 kHz leg control
   {
-    KEY_Forback_Ctrl1();
-    Chassic_Forback_Ctrl();
-    static uint16_t re_flag;
+    // TIM3 is 1 kHz for the leg loop. Keep chassis ramp/power work at 500 Hz.
     if (Motor_Flag.TIM3_Flag == 0)
     {
+      KEY_Forback_Ctrl1();
+      Chassic_Forback_Ctrl();
       M3508_Limit_deal();
       Motor_Flag.TIM3_Flag = 1;
+      Leg_Update_Forward_State(0.002f);
     }
     else
     {
+      Motor_Flag.TIM3_Flag = 0;
+    }
+
+    {
       LegControlInput leg_input = {0};
+      const float leg_dt = 0.001f;
+
+      float wheel_target_mean =
+          (fabsf(DP.ML.qz) + fabsf(DP.ML.hz) +
+           fabsf(DP.ML.hy) + fabsf(DP.ML.qy)) * 0.25f;
+      float wheel_feedback_mean =
+          (fabsf((float)M3508_MOTOR_QZ.sp) + fabsf((float)M3508_MOTOR_HZ.sp) +
+           fabsf((float)M3508_MOTOR_HY.sp) + fabsf((float)M3508_MOTOR_QY.sp)) * 0.25f;
+      float wheel_stall_ratio = 0.0f;
+      if (wheel_target_mean > 100.0f)
+        wheel_stall_ratio = LIMIT((wheel_target_mean - wheel_feedback_mean) /
+                                      wheel_target_mean,
+                                  0.0f, 1.0f);
+
+      uint32_t now_tick = HAL_GetTick();
+      uint32_t pitch_age_ms = now_tick - Gimbal_Pitch_Tick;
+      uint32_t pitch_rate_age_ms = now_tick - Gimbal_Pitch_Acc_Tick;
+      if (pitch_rate_age_ms > pitch_age_ms)
+        pitch_age_ms = pitch_rate_age_ms;
+      uint32_t roll_age_ms = now_tick - Gimbal_Roll_Tick;
+      uint32_t roll_rate_age_ms = now_tick - Gimbal_Roll_Acc_Tick;
+      if (roll_rate_age_ms > roll_age_ms)
+        roll_age_ms = roll_rate_age_ms;
+
       leg_input.yk_mode = YK_Mode;
       leg_input.xtl_flag = XTL_Flag;
       leg_input.ch3 = YK.yaogan.v;
@@ -1084,31 +1332,47 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       leg_input.chassis_ch1_real = Chassic_Ch1_Real;
       leg_input.sin_theta = sin_theta;
       leg_input.cos_theta = cos_theta;
+      leg_input.dt = leg_dt;
+      leg_input.forward_cmd = Leg_Get_Forward_Command();
+      leg_input.forward_accel = Leg_Forward_Accel;
+      leg_input.wheel_stall_ratio = wheel_stall_ratio;
+      leg_input.pitch_data_age = pitch_age_ms * 0.001f;
+      leg_input.roll_data_age = roll_age_ms * 0.001f;
       leg_input.left_motor = &Left_Leg;
       leg_input.right_motor = &Right_Leg;
       //Leg_Control_Update(&leg_input);
       Leg_SMC_Control(&leg_input);
-      if (Motor_Flag.DM_Flag == 0)
-      {
-        Left_Leg.DM_MIT(0x02, 0, 0, 0, Leg_Control_Get_Mit_Kd(), Leg_Control_Get_Left_Torque());
-        Motor_Flag.DM_Flag = 1;
-      }
-      else if (Motor_Flag.DM_Flag == 1)
-      {
-        Right_Leg.DM_MIT(0x01, 0, 0, 0, Leg_Control_Get_Mit_Kd(),Leg_Control_Get_Right_Torque());
-        Motor_Flag.DM_Flag = 0;
-      }
-      Motor_Flag.TIM3_Flag = 0;
+      LegControlOutput leg_control_output;
+      Leg_Control_Get_Output(&leg_control_output);
+      Leg_Trace_Update(&leg_input, &leg_control_output);
     }
+    static uint16_t re_flag;
     re_flag++;
     if (re_flag % 2000 == 0)
     {
-      if (Motor_Flag.DM_Flag == 1 && Left_Leg.ERR != 1)
+      if (Left_Leg.ERR != 1 &&
+          HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) >= 1)
         Left_Leg.DM_Start(0x02);
-      else if (Motor_Flag.DM_Flag == 0 && Right_Leg.ERR != 1)
+      if (Right_Leg.ERR != 1 &&
+          HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) >= 1)
         Right_Leg.DM_Start(0x01);
       re_flag = 0;
     }
+    // Send the same control sample to both DM joints in this 1 ms period.
+    // If either mailbox is unavailable, report a pair failure instead of
+    // updating one joint with a stale counterpart.
+    uint8_t dm_pair_ok = 0;
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) >= 2)
+    {
+      HAL_StatusTypeDef left_status =
+          Left_Leg.DM_MIT(0x02, 0, 0, 0, Leg_Control_Get_Mit_Kd(),
+                          Leg_Control_Get_Left_Torque());
+      HAL_StatusTypeDef right_status =
+          Right_Leg.DM_MIT(0x01, 0, 0, 0, Leg_Control_Get_Mit_Kd(),
+                           Leg_Control_Get_Right_Torque());
+      dm_pair_ok = (left_status == HAL_OK && right_status == HAL_OK);
+    }
+    Leg_Control_Report_OutputPairResult(dm_pair_ok);
   }
   if (htim == &htim5) // CAN通讯 100Hz
   {
