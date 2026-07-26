@@ -31,6 +31,7 @@ extern volatile float leg_roll_balance_kp;
 extern volatile float leg_roll_balance_kd;
 extern volatile float leg_roll_balance_limit;
 extern volatile float leg_roll_balance_direction;
+extern volatile float leg_roll_balance_target;
 extern volatile uint32_t leg_dm_pair_send_ok_count;
 extern volatile uint32_t leg_dm_pair_send_fail_count;
 extern volatile uint16_t leg_dm_pair_send_consecutive_fail;

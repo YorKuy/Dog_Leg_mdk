@@ -127,8 +127,12 @@ void SMC_PITCH::SMC_Tick(float Target_angle, float Target_angle_vel, float Targe
 
     // 2. 速度误差
     d_error = angle_vel - Target_angle_vel;
-    //积分误差累加
-    error_integral += error * 0.001f; // 采样周期为1ms 1000HZ
+    // Keep the integral continuous but bounded. Near the target it leaks
+    // slowly so a long climb cannot leave a large residual after unloading.
+    if (fabs(error) < error_eps && fabs(d_error) < 8.0f)
+        error_integral *= 0.995f;
+    else
+        error_integral = LIMIT(error_integral + error * 0.001f, -20.0f, 20.0f);
 
     // 3. 滑模面
     s = C * error + d_error + C2 * error_integral;
@@ -138,6 +142,23 @@ void SMC_PITCH::SMC_Tick(float Target_angle, float Target_angle_vel, float Targe
 
     // 5. 限幅
     u = LIMIT(u, -u_max, u_max);
+}
+
+void SMC_PITCH::Reset()
+{
+    angle = 0.0f;
+    ang_vel = 0.0f;
+    last_delta = 0.0f;
+    delta = 0.0f;
+    u = 0.0f;
+    s = 0.0f;
+    error = 0.0f;
+    error_last = 0.0f;
+    dref = 0.0f;
+    ddref = 0.0f;
+    refl = ref;
+    d_error = 0.0f;
+    error_integral = 0.0f;
 }
 #endif
 

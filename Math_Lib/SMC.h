@@ -333,10 +333,14 @@ class SMC_PITCH{
     float s;
     float error;
     float dt;
-    SMC_PITCH(float C, float K, float c2, float error_eps, float u_max, float J, float epsilon) : 
-    C(C), K(K), C2(c2), error_eps(error_eps), u_max(u_max), J(J), epsilon(epsilon) {};
+    SMC_PITCH(float C, float K, float c2, float error_eps, float u_max, float J, float epsilon) :
+    C(C), K(K), C2(c2), ref(0.0f), error_eps(error_eps), u_max(u_max), J(J),
+    angle(0.0f), ang_vel(0.0f), epsilon(epsilon), last_delta(0.0f), delta(0.0f),
+    u(0.0f), s(0.0f), error(0.0f), dt(0.001f), error_last(0.0f),
+    dref(0.0f), ddref(0.0f), refl(0.0f), d_error(0.0f), error_integral(0.0f) {};
     float gm6020to_torq(float u);
     void  SMC_Tick(float Target_angle, float Target_angle_vel, float Target_angle_acc, float angle, float angle_vel);
+    void  Reset();
 
     private:
     float error_last;

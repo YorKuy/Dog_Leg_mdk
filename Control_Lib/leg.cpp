@@ -7,92 +7,91 @@
 typedef float f;
 typedef uint8_t u8;
 
-// 腿部机械角度范围
 #define LEFT_LEG_MAX_MANG -0.59207F
-#define LEFT_LEG_MIN_MANG -1.34095F
-#define RIGHT_LEG_MAX_MANG -2.59529F
-#define RIGHT_LEG_MIN_MANG -1.92694F
+#define LEFT_LEG_MIN_MANG -1.34095F 
+#define RIGHT_LEG_MAX_MANG -2.59529F 
+#define RIGHT_LEG_MIN_MANG -1.92694F  
 
-// 电机阻尼与输出保护
-#define LEG_DM_MIT_KD 3.5f
-#define LEG_JOINT_DAMPING_GAIN 0.60f
-#define LEG_JOINT_DAMPING_SPEED_DEADZONE 0.20f
+// 电机阻尼与输出保护。KD 和软件阻尼都增大时抑振更强，但腿会变钝且发热增加。
+#define LEG_DM_MIT_KD 3.5f                       // DM MIT 内部速度阻尼；建议每次只加/减 0.2，范围不要超过驱动器 KD_MAX=5
+#define LEG_JOINT_DAMPING_GAIN 0.60f             // 软件关节速度阻尼 Nm/(rad/s)；增大可抑制连杆振荡，过大会阻碍伸缩
+#define LEG_JOINT_DAMPING_SPEED_DEADZONE 0.20f   // 速度小于该值时不加软件阻尼；减小更灵敏但更容易放大速度噪声
 
-// 两轴平衡参数。软件 roll/pitch 对应的物理轴由 main.c 根据装配关系交换。
-#define LEG_PITCH_TARGET_ANGLE 0.0f
-#define LEG_PITCH_BALANCE_SIGN -1.0f
-#define LEG_PITCH_OUTPUT_LIMIT 18.0f
-#define LEG_ROLL_BALANCE_SIGN -1.0f
-#define LEG_ROLL_KEEP_TARGET_ANGLE 1.0f
-#define LEG_SMC_OUTPUT_SLEW_STEP 1.25f
+#define LEG_PITCH_TARGET_ANGLE 0.0f      // 物理 roll 默认水平目标，degree；当前用于初始化 leg_roll_balance_target
+#define LEG_PITCH_BALANCE_SIGN -1.0f     // 预留的物理 roll 对称混控符号；当前 leg_pitch_cmd=0，通常不要修改
+#define LEG_PITCH_OUTPUT_LIMIT 18.0f     // 预留物理 roll 对称混控限幅，Nm；当前主路径基本不生效
+#define LEG_ROLL_BALANCE_SIGN -1.0f      // 物理 pitch SMC 到镜像电机的符号；已实车验证，禁止作为增益调节
+#define LEG_ROLL_KEEP_TARGET_ANGLE 1.0f  // 物理 pitch 平衡目标，degree；车体静止前后水平时按 IMU 平均值校准
+#define LEG_SMC_OUTPUT_SLEW_STEP 1.25f   // 最终单电机每 1 ms 最大力矩变化，Nm；增大响应快但冲击大，减小平滑但滞后
 
-// Dynamic compensation parameters. The active loop runs at 1 kHz.
-#define LEG_CONTROL_DT_DEFAULT 0.001f
-#define LEG_ACCEL_FF_ACCEL_TIME_CONSTANT 0.020f
-#define LEG_ACCEL_FF_BRAKE_TIME_CONSTANT 0.008f
-#define LEG_ACCEL_FF_DECAY_TIME 0.030f
-#define LEG_DYNAMIC_AUX_LIMIT 8.0f
-#define LEG_HEIGHT_DAMPING_LIMIT 5.0f
-#define LEG_HEIGHT_SPEED_FILTER_TIME_CONSTANT 0.016f
-// Verified mechanism relation: height increasing drives physical pitch negative.
-// A positive roll command lowers the leg, so this sign produces true damping.
+// 动态补偿参数，主控制周期为 1 kHz。时间常数增大更平滑但响应更慢，减小则相反。
+#define LEG_CONTROL_DT_DEFAULT 0.001f                 // 输入 dt 异常时采用的默认周期，s；必须与 1 kHz 控制周期一致
+#define LEG_ACCEL_FF_ACCEL_TIME_CONSTANT 0.016f       // 加速前馈一阶滤波时间，s；振荡时可增大，补偿迟钝时可减小
+#define LEG_ACCEL_FF_BRAKE_TIME_CONSTANT 0.006f       // 制动前馈滤波时间，s；减小可更快应对急停，但过小会产生冲击
+#define LEG_ACCEL_FF_DECAY_TIME 0.006f                // 加速度结束后前馈衰减时间，s；增大会残留更久，可能导致急停后反弹
+#define LEG_DYNAMIC_AUX_LIMIT 8.0f                    // 加速度前馈+腿速阻尼+高度保持的总限幅，Nm；增大辅助更强但会抢占 pitch 输出
+#define LEG_HEIGHT_DAMPING_LIMIT 6.0f                 // 腿高速度阻尼最大输出，Nm；高速坡振荡时可小幅增加
+#define LEG_HEIGHT_SPEED_FILTER_TIME_CONSTANT 0.016f  // 归一化腿高速度滤波时间，s；增大可降噪但阻尼相位更滞后
 #define LEG_HEIGHT_DAMPING_TO_ROLL_SIGN 1.0f
 
-// Physical roll correction. Positive command retracts the left leg; negative
-// command retracts the right leg. Only the selected side receives correction.
-#define LEG_ROLL_BALANCE_FILTER_TIME_CONSTANT 0.010f
-#define LEG_ROLL_RATE_FILTER_TIME_CONSTANT 0.020f
-#define LEG_ROLL_RETRACT_SOFT_ZONE 0.05f
+// 物理 roll 单侧收腿补偿。正命令收左腿，负命令收右腿；这里只调响应速度和限位。
+#define LEG_ROLL_BALANCE_FILTER_TIME_CONSTANT 0.008f  // 物理 roll 力矩滤波时间，s；减小响应快，增大可减轻左右抖动
+#define LEG_ROLL_RATE_FILTER_TIME_CONSTANT 0.020f     // 物理 roll 角速度滤波时间，s；角速度噪声大时增大，单边桥响应慢时减小
+#define LEG_ROLL_RETRACT_SOFT_ZONE 0.05f              // 接近完全收腿端的软保护比例；增大可更早减力，但会减少限位附近 roll 权限
 
-// Forward slope/support detection and one-way height hold.
-#define LEG_SLOPE_FORWARD_ENTER 120.0f
-#define LEG_SLOPE_FORWARD_EXIT 60.0f
-#define LEG_SLOPE_PITCH_ENTER 2.0f
-#define LEG_SLOPE_STALL_ENTER 0.20f
-#define LEG_SLOPE_SMC_ENTER 6.0f
-#define LEG_SLOPE_CONFIRM_TIME 0.032f
-#define LEG_SLOPE_CANDIDATE_TIMEOUT 0.300f
-#define LEG_SUPPORT_TIMEOUT 2.500f
-#define LEG_HEIGHT_HOLD_DEADZONE 0.005f
-#define LEG_HEIGHT_REF_RELEASE_RATE 0.01f
-#define LEG_HEIGHT_TO_ROLL_SIGN -1.0f
-#define LEG_HEIGHT_EMERGENCY_PITCH 8.0f
-#define LEG_HEIGHT_EMERGENCY_RATE 60.0f
+// 自动坡面支撑识别与单向高度保持。leg_enable_slope_hold=0 时以下识别参数不生效。
+#define LEG_SLOPE_FORWARD_ENTER 120.0f       // 允许进入坡面候选的最小前进命令；减小更容易触发，也更容易平地误触发
+#define LEG_SLOPE_FORWARD_EXIT 60.0f         // 低于该前进命令退出支撑；增大退出更早，减小可保持更久
+#define LEG_SLOPE_PITCH_ENTER 2.0f           // 物理 pitch 偏差触发阈值，degree；减小更灵敏但容易被颠簸触发
+#define LEG_SLOPE_STALL_ENTER 0.20f          // 四轮平均失速率阈值，0~1；减小更容易识别坡面/障碍
+#define LEG_SLOPE_SMC_ENTER 6.0f             // 物理 pitch SMC 力矩阈值，Nm；减小更容易触发支撑
+#define LEG_SLOPE_CONFIRM_TIME 0.032f         // 条件持续确认时间，s；增大可抗误触发但识别变慢
+#define LEG_SLOPE_CANDIDATE_TIMEOUT 0.300f    // 候选状态最长等待时间，s；太短可能来不及确认，太长可能卡在候选态
+#define LEG_SUPPORT_TIMEOUT 2.500f            // 支撑保持最长时间，s；增大允许长坡保持，但错误状态持续更久
+#define LEG_HEIGHT_HOLD_DEADZONE 0.005f       // 归一化腿高保持死区；增大可减抖但高度波动增大
+#define LEG_HEIGHT_REF_RELEASE_RATE 0.01f     // 高度参考向收腿方向的释放速度，归一化高度/s；增大释放快但保持变弱
+#define LEG_HEIGHT_TO_ROLL_SIGN -1.0f         // 高度保持加到物理 pitch 轴的符号；机构方向参数，不应作为增益调整
+#define LEG_HEIGHT_EMERGENCY_PITCH 8.0f       // 超过该物理 pitch 偏差时撤销高度保持，degree；减小更保守
+#define LEG_HEIGHT_EMERGENCY_RATE 60.0f       // 超过该物理 pitch 角速度时撤销高度保持，degree/s；减小更早让权给 SMC
 
-// Rear-wheel unloading catch.
-#define LEG_UNLOAD_HEIGHT_SPEED -0.25f
-#define LEG_UNLOAD_TORQUE_DROP_RATIO 0.70f
-#define LEG_UNLOAD_PITCH_RATE 15.0f
-#define LEG_UNLOAD_CONFIRM_TIME 0.008f
-#define LEG_UNLOAD_MIN_TIME 0.080f
-#define LEG_UNLOAD_MAX_TIME 0.200f
-#define LEG_UNLOAD_TORQUE_LIMIT 30.0f
-#define LEG_UNLOAD_RETRACT_SLEW_PER_STEP 0.30f
-#define LEG_UNLOAD_BRAKE_SLEW_PER_STEP 0.80f
-#define LEG_UNLOAD_DAMPING_GAIN 1.80f
-#define LEG_UNLOAD_MIT_KD 4.20f
-#define LEG_SETTLE_TIME 0.250f
+// 后轮卸载/离地缓冲。leg_enable_unload_catch=0 时以下缓冲参数不生效。
+#define LEG_UNLOAD_HEIGHT_SPEED -0.25f          // 判定快速收腿的归一化腿高速度；绝对值减小会更容易触发
+#define LEG_UNLOAD_TORQUE_DROP_RATIO 0.70f      // 当前反馈力矩低于峰值的该比例视为卸载；增大更容易触发
+#define LEG_UNLOAD_PITCH_RATE 15.0f             // 可替代力矩下降条件的物理 pitch 角速度阈值，degree/s；减小更敏感
+#define LEG_UNLOAD_CONFIRM_TIME 0.008f           // 卸载条件确认时间，s；增大可抗噪但缓冲介入更晚
+#define LEG_UNLOAD_MIN_TIME 0.080f               // 卸载缓冲最短保持时间，s；增大保护更充分但动作更慢
+#define LEG_UNLOAD_MAX_TIME 0.200f               // 卸载缓冲最长时间，s；增大可延长保护但影响后续收敛
+#define LEG_UNLOAD_TORQUE_LIMIT 30.0f            // 卸载状态最大主动收腿力矩，Nm；减小冲击更小，但可能收腿不足
+#define LEG_UNLOAD_RETRACT_SLEW_PER_STEP 0.30f   // 卸载时收腿力矩每 1 ms 最大增量，Nm，即 300 Nm/s；减小更柔和
+#define LEG_UNLOAD_BRAKE_SLEW_PER_STEP 0.80f     // 卸载时制动力矩每 1 ms 最大变化，Nm，即 800 Nm/s；增大制动更及时
+#define LEG_UNLOAD_DAMPING_GAIN 1.80f            // 卸载时软件关节速度阻尼；增大抑制离地后甩腿，过大会阻碍动作
+#define LEG_UNLOAD_MIT_KD 4.20f                  // 卸载时 DM MIT KD；增大电机阻尼更强，禁止超过驱动器 KD_MAX=5
+#define LEG_SETTLE_TIME 0.250f                   // 卸载后柔和恢复持续时间，s；增大更稳但回到正常控制更慢
 
-// FAST/PLAYER 腿长串级 PID
-#define LEG_FAST_HEIGHT_KP 242.0f
-#define LEG_FAST_HEIGHT_KD 0.60f
-#define LEG_FAST_HEIGHT_LIMIT 38.0f
-#define LEG_FAST_HEIGHT_UP_FF 5.0f
-#define LEG_FAST_HEIGHT_STEP_DEADZONE 0.00005f
-#define LEG_FAST_HEIGHT_TARGET_STEP_DIV 6600.0f
-#define LEG_FAST_HEIGHT_FF_ADD 0.10f
-#define LEG_FAST_HEIGHT_FF_DECAY 0.96f
-#define LEG_FAST_HEIGHT_FF_LIMIT 50.0f
-#define LEG_FAST_HEIGHT_OUT_LIMIT 40.0f
-#define LEG_FAST_HEIGHT_ERROR_DEADZONE 0.010f
-#define LEG_FAST_HEIGHT_ERROR_GROW_DEADZONE 0.0003f
-#define LEG_FAST_HEIGHT_PID_FULL_RATIO 0.90f
+// FAST/PLAYER 手动腿长串级 PID。实际 PID 增益在下方 PID_class 构造函数中，
+// LEG_FAST_HEIGHT_KP/KD/UP_FF/STEP_DEADZONE 是旧版预留宏，当前没有进入计算。
+#define LEG_FAST_HEIGHT_KP 242.0f                  // 旧版预留腿高 Kp，当前未使用，修改无效果
+#define LEG_FAST_HEIGHT_KD 0.60f                   // 旧版预留腿高 Kd，当前未使用，修改无效果
+#define LEG_FAST_HEIGHT_LIMIT 38.0f                // 角度 PID 接近该输出比例时累加前馈；增大后前馈介入更晚
+#define LEG_FAST_HEIGHT_UP_FF 5.0f                 // 旧版预留上抬前馈，当前未使用，修改无效果
+#define LEG_FAST_HEIGHT_STEP_DEADZONE 0.00005f     // 旧版预留目标步进死区，当前未使用，修改无效果
+#define LEG_FAST_HEIGHT_TARGET_STEP_DIV 6600.0f    // 手动腿长目标步进除数；增大腿长变化更慢，减小更快
+#define LEG_FAST_HEIGHT_FF_ADD 0.10f               // 误差持续增大时每周期累加的前馈；增大顶腿更强但容易冲击
+#define LEG_FAST_HEIGHT_FF_DECAY 0.96f             // 前馈无须继续增加时的保留比例；越接近 1 衰减越慢
+#define LEG_FAST_HEIGHT_FF_LIMIT 50.0f             // 腿长误差增长前馈限幅，Nm；增大可能超过最终输出限幅而无额外效果
+#define LEG_FAST_HEIGHT_OUT_LIMIT 40.0f            // 手动腿长最终单电机力矩限幅，Nm；增大提升能力也增加结构负担
+#define LEG_FAST_HEIGHT_ERROR_DEADZONE 0.010f       // 腿长角度误差死区，rad；增大可减抖但保持精度下降
+#define LEG_FAST_HEIGHT_ERROR_GROW_DEADZONE 0.0003f // 判断误差正在增大的阈值，rad；减小会更频繁累加前馈
+#define LEG_FAST_HEIGHT_PID_FULL_RATIO 0.90f        // PID 输出达到限幅的该比例时提前累加前馈；减小会更早介入
 
 static PID_class left_control_mang(120.0f, 0.0f, 0.0f, 84.0f, 0.0f, 0.0f, 84.0f, 0.06f, 0.0f),
     left_control_sp(0.32f, 0.0f, 0.0f, 20.0f, 0.0f, 0.0f, 20.0f, 0.20f, 0.0f),
     right_control_mang(120.0f, 0.0f, 0.0f, 84.0f, 0.0f, 0.0f, 84.0f, 0.06f, 0.0f),
     right_control_sp(0.32f, 0.0f, 0.0f, 20.0f, 0.0f, 0.0f, 20.0f, 0.20f, 0.0f);
 
+// 物理 pitch SMC 参数顺序：C, K, C2, error_eps, u_max, J, epsilon。
+// C/K/J 增大都会增强响应并提高振荡风险；C2 增大可减小长坡静差但增加卸载后过冲；
+// error_eps 只决定积分泄漏范围；u_max 为原始 SMC 输出上限；epsilon 增大切换项和抖振。
 static SMC_PITCH leg_roll_smc(48, 65, 1.05f, 1.5f, 8000, 0.8f, 1.0f);
 static UpDown_check_class leg_mode_key(0);
 static u8 leg_control_mode = 0;
@@ -105,26 +104,33 @@ static f left_mang_last_error;
 static f right_mang_last_error;
 static LegControlOutput leg_output = {0};
 
-volatile uint8_t leg_enable_accel_feedforward = 1;
-volatile uint8_t leg_enable_forward_jerk_limit = 0;
-volatile uint8_t leg_enable_height_damping = 1;
-volatile uint8_t leg_enable_slope_hold = 0;
-volatile uint8_t leg_enable_unload_catch = 0;
-volatile uint8_t leg_enable_roll_balance = 1;
-volatile float leg_accel_ff_accel_gain = 2.50f;
-volatile float leg_accel_ff_brake_gain = 2.80f;
-volatile float leg_accel_ff_limit = 6.0f;
-volatile float leg_height_damping_gain = 3.5f;
-volatile float leg_height_hold_kp = 60.0f;
-volatile float leg_height_hold_kd = 3.0f;
-volatile float leg_height_hold_limit = 6.0f;
-volatile float leg_roll_balance_kp = 1.50f;
-volatile float leg_roll_balance_kd = 0.10f;
-volatile float leg_roll_balance_limit = 10.0f;
-volatile float leg_roll_balance_direction = 1.0f;
-volatile uint32_t leg_dm_pair_send_ok_count;
-volatile uint32_t leg_dm_pair_send_fail_count;
-volatile uint16_t leg_dm_pair_send_consecutive_fail;
+// 以下 volatile 变量可在 Ozone 中在线修改。开关只允许写 0/1；调参时一次只改一个量。
+volatile uint8_t leg_enable_accel_feedforward = 1;  // 加减速物理 pitch 前馈：1启用；排查前馈方向/振荡时可临时置0对比
+volatile uint8_t leg_enable_forward_jerk_limit = 1; // 前进命令 S 曲线：1启用；关闭后加减速更直接，惯性冲击也更大
+volatile uint8_t leg_enable_height_damping = 1;     // 归一化腿高速度阻尼：1启用；高速坡振荡时应保持开启
+volatile uint8_t leg_enable_slope_hold = 0;         // 自动坡面识别和高度保持：当前默认关闭，完成识别验证后再开启
+volatile uint8_t leg_enable_unload_catch = 0;       // 后轮离地收腿缓冲：当前默认关闭，先确认卸载检测没有误触发
+volatile uint8_t leg_enable_roll_balance = 1;       // 物理 roll 单侧收腿平衡：1启用；保护架检查方向时可快速关闭
+
+volatile float leg_accel_ff_accel_gain = 2.50f;     // 加速前馈增益；增大下压更强，过大会在加速结束后反弹
+volatile float leg_accel_ff_brake_gain = 2.80f;     // 制动前馈增益；增大急停补偿更强，过大会反向冲击
+volatile float leg_accel_ff_limit = 6.0f;           // 单独加速度前馈限幅，Nm；急停振荡先减到5/4.5，补偿不足再增加
+volatile float leg_height_damping_gain = 4.5f;      // 腿高速度阻尼增益；坡面往复振荡时每次加0.5，腿变钝时回退
+
+volatile float leg_height_hold_kp = 60.0f;          // 支撑高度误差刚度，Nm/归一化高度；增大保持更硬，也更容易上下振荡
+volatile float leg_height_hold_kd = 3.0f;           // 支撑状态收腿速度阻尼；增大可抑制回落，过大会阻碍正常收腿
+volatile float leg_height_hold_limit = 6.0f;        // 高度保持最大附加力矩，Nm；增大保持更强但更会抢占物理 pitch 控制
+
+volatile float leg_roll_balance_kp = 2.10f;         // 物理 roll 角度增益，Nm/degree；持续侧倾时每次加0.2，左右摇摆时减小
+volatile float leg_roll_balance_kd = 0.18f;         // 物理 roll 角速度阻尼，Nm/(degree/s)；来回摇摆时每次加0.03，噪声抖动时减小
+volatile float leg_roll_balance_limit = 14.0f;      // 物理 roll 最大单侧收腿补偿，Nm；命令长期饱和才逐步增加到16
+volatile float leg_roll_balance_direction = 1.0f;  // 物理 roll 方向，只允许1或-1；若倾斜后补偿使其更严重就翻转
+volatile float leg_roll_balance_target = LEG_PITCH_TARGET_ANGLE; // 物理 roll 水平零点，degree；填写车体水平静止时 Gimbal_Roll 平均值
+
+// 只读诊断计数，不是控制增益。正常运行 fail/consecutive_fail 应保持不增长。
+volatile uint32_t leg_dm_pair_send_ok_count;          // 左右 DM 同周期成对发送成功累计次数
+volatile uint32_t leg_dm_pair_send_fail_count;        // 因邮箱不足或发送失败导致整对未成功的累计次数
+volatile uint16_t leg_dm_pair_send_consecutive_fail;  // 连续成对发送失败次数；持续增长表示 CAN 带宽或发送异常
 
 static LegDynamicState leg_dynamic_state = LEG_DYNAMIC_NORMAL;
 static f leg_dynamic_state_time;
@@ -369,7 +375,7 @@ static f leg_roll_balance_update(const LegControlInput *input, f dt)
   {
     target_cmd = leg_roll_balance_direction *
                  (leg_roll_balance_kp *
-                      (input->gimbal_pitch - LEG_PITCH_TARGET_ANGLE) +
+                      (input->gimbal_pitch - leg_roll_balance_target) +
                   leg_roll_balance_kd * leg_roll_rate_filtered);
     target_cmd = LIMIT(target_cmd, -leg_roll_balance_limit,
                                    leg_roll_balance_limit);
@@ -396,18 +402,33 @@ static void leg_apply_roll_retract_only(const LegControlInput *input,
     // Positive physical roll: retract the left leg only.
     f scale = leg_retract_soft_scale(input->left_motor->mang,
                                      LEFT_LEG_MIN_MANG, LEFT_LEG_MAX_MANG);
-    leg_output.left_torque = LIMIT(leg_output.left_torque -
-                                       roll_balance_cmd * scale,
+    f requested = roll_balance_cmd * scale;
+    f left_before = leg_output.left_torque;
+    leg_output.left_torque = LIMIT(left_before - requested,
                                    -torque_limit, torque_limit);
+
+    // If the selected leg is already at its retract limit, release part of
+    // the other leg's retract torque. This preserves roll authority without
+    // commanding the opposite leg to extend.
+    f remaining = requested - (left_before - leg_output.left_torque);
+    if (remaining > 0.0f && leg_output.right_torque > 0.0f)
+      leg_output.right_torque = leg_max(0.0f,
+                                        leg_output.right_torque - remaining);
   }
   else if (roll_balance_cmd < 0.0f)
   {
     // Negative physical roll: retract the right mirrored leg only.
     f scale = leg_retract_soft_scale(input->right_motor->mang,
                                      RIGHT_LEG_MIN_MANG, RIGHT_LEG_MAX_MANG);
-    leg_output.right_torque = LIMIT(leg_output.right_torque -
-                                        roll_balance_cmd * scale,
+    f requested = -roll_balance_cmd * scale;
+    f right_before = leg_output.right_torque;
+    leg_output.right_torque = LIMIT(right_before + requested,
                                     -torque_limit, torque_limit);
+
+    f remaining = requested - (leg_output.right_torque - right_before);
+    if (remaining > 0.0f && leg_output.left_torque < 0.0f)
+      leg_output.left_torque = leg_min(0.0f,
+                                       leg_output.left_torque + remaining);
   }
 }
 
@@ -758,6 +779,7 @@ void Leg_SMC_Control(const LegControlInput *input)
     leg_forward_initialized = 0;
     leg_roll_rate_filtered = 0.0f;
     leg_roll_balance_filtered = 0.0f;
+    leg_roll_smc.Reset();
     leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
     leg_clear_mang_pid();
     leg_sync_output();
@@ -777,6 +799,8 @@ void Leg_SMC_Control(const LegControlInput *input)
 
   if (leg_height_mode_now)
   {
+    if (leg_smc_mode_last)
+      leg_roll_smc.Reset();
     leg_smc_mode_last = 0;
     leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
     leg_accel_ff_filtered = 0.0f;
@@ -794,9 +818,11 @@ void Leg_SMC_Control(const LegControlInput *input)
     leg_height_mode_last = 0;
     f last_left_torque = leg_output.left_torque;
     f last_right_torque = leg_output.right_torque;
-    float roll_smc_iinput = input->gimbal_roll - LEG_ROLL_KEEP_TARGET_ANGLE;
+    if (leg_smc_mode_last == 0)
+      leg_roll_smc.Reset();
     leg_roll_smc.ref = LEG_ROLL_KEEP_TARGET_ANGLE;
-    leg_roll_smc.SMC_Tick(LEG_ROLL_KEEP_TARGET_ANGLE,roll_smc_iinput,0,input->gimbal_roll,input->gimbal_roll_acc);
+    leg_roll_smc.SMC_Tick(LEG_ROLL_KEEP_TARGET_ANGLE, 0.0f, 0.0f,
+                          input->gimbal_roll, input->gimbal_roll_acc);
     leg_output.smc_cmd = torque_return(leg_roll_smc.u);
     leg_update_dynamic_state(input, leg_output.smc_cmd, dt);
     leg_output.accel_ff_cmd = leg_accel_feedforward_update(input, dt);
@@ -872,6 +898,8 @@ void Leg_SMC_Control(const LegControlInput *input)
   else
   {
     leg_height_mode_last = 0;
+    if (leg_smc_mode_last)
+      leg_roll_smc.Reset();
     leg_smc_mode_last = 0;
     leg_enter_dynamic_state(LEG_DYNAMIC_NORMAL);
     leg_accel_ff_filtered = 0.0f;
