@@ -6,6 +6,8 @@
 
 typedef float f;
 typedef uint8_t u8;
+//当前：动态单数据补偿，smc快速响应，pid缓力矩校准补偿，离地缓冲，加速度腿速前馈
+//后续发展：lqr状态矩阵建模，vmc虚拟力矩转化关节力矩，MPC模型扰动与前馈
 
 #define LEFT_LEG_MAX_MANG -0.59207F
 #define LEFT_LEG_MIN_MANG -1.34095F 
