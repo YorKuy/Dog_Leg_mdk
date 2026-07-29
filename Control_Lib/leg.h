@@ -14,12 +14,15 @@ typedef enum
 } LegDynamicState;
 
 // Ozone can change these switches and gains without rebuilding.
+extern volatile uint8_t leg_enable_pitch_balance;
 extern volatile uint8_t leg_enable_accel_feedforward;
 extern volatile uint8_t leg_enable_forward_jerk_limit;
 extern volatile uint8_t leg_enable_height_damping;
 extern volatile uint8_t leg_enable_slope_hold;
 extern volatile uint8_t leg_enable_unload_catch;
 extern volatile uint8_t leg_enable_roll_balance;
+extern volatile uint8_t leg_enable_player_balance_overlay;
+extern volatile uint8_t leg_enable_torque_scurve;
 extern volatile float leg_accel_ff_accel_gain;
 extern volatile float leg_accel_ff_brake_gain;
 extern volatile float leg_accel_ff_limit;
@@ -29,9 +32,22 @@ extern volatile float leg_height_hold_kd;
 extern volatile float leg_height_hold_limit;
 extern volatile float leg_roll_balance_kp;
 extern volatile float leg_roll_balance_kd;
+extern volatile float leg_roll_balance_ki;
+extern volatile float leg_roll_balance_i_limit;
 extern volatile float leg_roll_balance_limit;
 extern volatile float leg_roll_balance_direction;
 extern volatile float leg_roll_balance_target;
+extern volatile float leg_roll_balance_i_output;
+extern volatile float leg_joint_damping_gain;
+extern volatile float leg_joint_damping_speed_deadzone;
+extern volatile float leg_joint_damping_extend_scale;
+extern volatile float leg_joint_damping_retract_scale;
+extern volatile float leg_height_speed_filter_time;
+extern volatile float leg_normal_drive_slew_rate;
+extern volatile float leg_normal_brake_slew_rate;
+extern volatile float leg_torque_stage_window;
+extern volatile float leg_torque_drive_jerk;
+extern volatile float leg_torque_brake_jerk;
 extern volatile uint32_t leg_dm_pair_send_ok_count;
 extern volatile uint32_t leg_dm_pair_send_fail_count;
 extern volatile uint16_t leg_dm_pair_send_consecutive_fail;
@@ -82,6 +98,10 @@ typedef struct
   float roll_balance_cmd;
   float height;
   float height_speed;
+  float left_raw_torque;
+  float right_raw_torque;
+  float left_stage_torque;
+  float right_stage_torque;
   uint8_t dynamic_state;
 } LegControlOutput;
 

@@ -38,8 +38,9 @@ enable_language(C ASM CXX)
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
-# main.c/stm32f4xx_it.c/my_math.c include C++ headers (RM_Lib.h), must compile as C++
-set_source_files_properties(Core/Src/main.c Core/Src/stm32f4xx_it.c RM2023_Lib_V1.2/my_math.c PROPERTIES LANGUAGE CXX)
+# stm32f4xx_it.c/my_math.c include C++ headers (RM_Lib.h), must compile as C++.
+# Core/Src/main.c now remains a CubeMX-compatible C hardware entry layer.
+set_source_files_properties(Core/Src/stm32f4xx_it.c RM2023_Lib_V1.2/my_math.c PROPERTIES LANGUAGE CXX)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
@@ -68,6 +69,12 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     CH010/example_data.c
     # Control_Lib
     Control_Lib/leg.cpp
+    Control_Lib/leg_balance.cpp
+    Control_Lib/leg_output.cpp
+    Control_Lib/leg_height.cpp
+    # App_Lib
+    App_Lib/app_chassis.cpp
+    App_Lib/main.cpp
 )
 
 # Add include paths
@@ -78,11 +85,13 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     IMU
     CH010
     Control_Lib
+    App_Lib
 )
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
+    DOG_LEG_USE_CPP_MAIN
 )
 
 # Remove wrong libob.a library dependency when using cpp files
